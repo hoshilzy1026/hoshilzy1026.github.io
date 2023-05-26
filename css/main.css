@@ -514,10 +514,10 @@ pre code {
   text-shadow: none;
 }
 pre .deletion {
-  background: #800000;
+  background: #fdd;
 }
 pre .addition {
-  background: #008000;
+  background: #dfd;
 }
 pre .meta {
   color: #eab700;
@@ -1220,7 +1220,7 @@ pre .javascript .function {
 }
 .links-of-author a::before,
 .links-of-author span.exturl::before {
-  background: #62ff9c;
+  background: #8518ff;
   border-radius: 50%;
   content: ' ';
   display: inline-block;
