@@ -66,6 +66,18 @@
 ]]></content>
   </entry>
   <entry>
+    <title>最大公约数</title>
+    <url>/2023/05/27/%EF%BC%88gcd)%E6%9C%80%E5%A4%A7%E5%85%AC%E7%BA%A6%E6%95%B0/</url>
+    <content><![CDATA[<p>#（gcd)最大公约数的三种求法</p>
+<span id="more"></span>
+<h2 id="第一种求法："><a href="#第一种求法：" class="headerlink" title="第一种求法："></a>第一种求法：</h2><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (a == b)</span><br><span class="line">		<span class="keyword">return</span> a;</span><br><span class="line">	<span class="keyword">if</span> (a &gt; b)</span><br><span class="line">		<span class="keyword">return</span> gcd(a, a - b);</span><br><span class="line">	<span class="keyword">if</span> (a &lt; b)</span><br><span class="line">		<span class="keyword">return</span> gcd(b, b - a);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="第二种求法："><a href="#第二种求法：" class="headerlink" title="第二种求法："></a>第二种求法：</h2><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;<span class="comment">//默认a&gt;b!</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (b == <span class="number">0</span>)</span><br><span class="line">		<span class="keyword">return</span> a;</span><br><span class="line">	<span class="keyword">else</span></span><br><span class="line">		<span class="keyword">return</span> gcd(b, a % b);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="其实第二种方法的过程就是："><a href="#其实第二种方法的过程就是：" class="headerlink" title="其实第二种方法的过程就是："></a>其实第二种方法的过程就是：</h3><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">​```c</span><br><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (a &lt; b) &#123;</span><br><span class="line">		swao(a, b);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">while</span> (b != <span class="number">0</span>) &#123;</span><br><span class="line">		<span class="type">int</span> r = a % b;</span><br><span class="line">		a = b;</span><br><span class="line">		b = r;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> a;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight"><table><tr><td class="code"><pre><span class="line"></span><br></pre></td></tr></table></figure>]]></content>
+  </entry>
+  <entry>
     <title>Struct</title>
     <url>/2023/05/25/%E7%BB%93%E6%9E%84%E4%BD%93/</url>
     <content><![CDATA[<h1 id="结构体"><a href="#结构体" class="headerlink" title="结构体"></a>结构体</h1><p> 结构体(struct)是由一系列具有相同类型或不同类型的数据构成的数据集合，也叫结构。</p>
@@ -162,17 +174,5 @@
 <p>这种方式不能指明结构体类型名而是直接定义结构体变量，并且在值定义一次结构体变量时适用，无结构体名的结构体类型是无法重复使用的。</p>
 <p>也就是说，后面程序不能再定义此类型变量了，除非再写一次重复的struct。</p>
 ]]></content>
-  </entry>
-  <entry>
-    <title>最大公约数</title>
-    <url>/2023/05/27/%EF%BC%88gcd)%E6%9C%80%E5%A4%A7%E5%85%AC%E7%BA%A6%E6%95%B0/</url>
-    <content><![CDATA[<p>#（gcd)最大公约数的三种求法</p>
-<span id="more"></span>
-<h2 id="第一种求法："><a href="#第一种求法：" class="headerlink" title="第一种求法："></a>第一种求法：</h2><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (a == b)</span><br><span class="line">		<span class="keyword">return</span> a;</span><br><span class="line">	<span class="keyword">if</span> (a &gt; b)</span><br><span class="line">		<span class="keyword">return</span> gcd(a, a - b);</span><br><span class="line">	<span class="keyword">if</span> (a &lt; b)</span><br><span class="line">		<span class="keyword">return</span> gcd(b, b - a);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h2 id="第二种求法："><a href="#第二种求法：" class="headerlink" title="第二种求法："></a>第二种求法：</h2><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;<span class="comment">//默认a&gt;b!</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (b == <span class="number">0</span>)</span><br><span class="line">		<span class="keyword">return</span> a;</span><br><span class="line">	<span class="keyword">else</span></span><br><span class="line">		<span class="keyword">return</span> gcd(b, a % b);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="其实第二种方法的过程就是："><a href="#其实第二种方法的过程就是：" class="headerlink" title="其实第二种方法的过程就是："></a>其实第二种方法的过程就是：</h3><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">​```c</span><br><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (a &lt; b) &#123;</span><br><span class="line">		swao(a, b);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">while</span> (b != <span class="number">0</span>) &#123;</span><br><span class="line">		<span class="type">int</span> r = a % b;</span><br><span class="line">		a = b;</span><br><span class="line">		b = r;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> a;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight"><table><tr><td class="code"><pre><span class="line"></span><br></pre></td></tr></table></figure>]]></content>
   </entry>
 </search>
