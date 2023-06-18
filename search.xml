@@ -1,6 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title></title>
+    <url>/2023/06/18/IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8/</url>
+    <content><![CDATA[<h1 id="IO多路复用"><a href="#IO多路复用" class="headerlink" title="IO多路复用"></a>IO多路复用</h1><span id="more"></span>]]></content>
+  </entry>
+  <entry>
+    <title></title>
+    <url>/2023/06/13/TcpIP%E5%8D%8F%E8%AE%AE%E4%B8%89%E6%AC%A1%E6%8F%A1%E6%89%8B%E7%9A%84%E5%BF%85%E8%A6%81%E6%80%A7/</url>
+    <content><![CDATA[<h1 id="Tcp-x2F-IP协议三次握手的必要性"><a href="#Tcp-x2F-IP协议三次握手的必要性" class="headerlink" title="Tcp&#x2F;IP协议三次握手的必要性"></a>Tcp&#x2F;IP协议三次握手的必要性</h1><span id="more"></span>
+
+<p>TCP&#x2F;IP协议中，TCP协议提供可靠的连接服务，采用三次握手建立一个连接，如下图所示。</p>
+<p><img src="D:\Blog\host_source\Snipaste_2023-06-13_21-54-38.png"></p>
+<p>主机A为客户机，主机B为服务器</p>
+<p>确认号：其数值等于发送方的发送序号 +1(即接收方期望接收的下一个序列号)。</p>
+<p>说明：</p>
+<p>（1）第一次握手：建立连接时，客户端A发送SYN包（SYN&#x3D;j）到服务器B，并进入SYN_SEND状态，等待服务器B确认。</p>
+<p>（2）第二次握手：服务器B收到SYN包，必须确认客户A的SYN（ACK&#x3D;j+1），同时自己也发送一个SYN包（SYN&#x3D;k），即SYN+ACK包，此时服务器B进入SYN_RECV状态。</p>
+<p>（3）第三次握手：客户端A收到服务器B的SYN＋ACK包，向服务器B发送确认包ACK（ACK&#x3D;k+1），此包发送完毕，客户端A和服务器B进入ESTABLISHED状态，完成三次握手。</p>
+<p>必要性：</p>
+<p>这两天一直在考虑一个问题，就是两者为何要三次握手呢，一次或者两次不行吗</p>
+<p>考虑一次的问题，首先tcp是面向连接，一次握手肯定建立不了连接，因为客户机给服务器发出请求信息却没有得到回应，客户机是没法判定是否发送成功然后建立连接的。</p>
+<p>再看两次，假设只有两次握手，比如图中的1，2步，当A想要建立连接时发送一个SYN，然后等待ACK，结果这个SYN因为网络问题没有及时到达B，所以A在一段时间内没收到ACK后，再发送一个SYN，这次B顺利收到，接着A也收到ACK，这时A发送的第一个SYN终于到了B，对于B来说这是一个新连接请求，然后B又为这个连接申请资源，返回ACK，然而这个SYN是个无效的请求，A收到这个SYN的ACK后也并不会理会它，而B却不知道，B会一直为这个连接维持着资源，造成资源的浪费。</p>
+<p>三次连接就没毛病了？？是的</p>
+<p>两次握手的问题在于服务器端不知道一个SYN是否是无效的，而三次握手机制因为客户端会给服务器回复第二次握手，也意味着服务器会等待客户端的第三次握手，如果第三次握手迟迟不来，服务器便会认为这个SYN是无效的，释放相关资源。但这时有个问题就是客户端完成第二次握手便认为连接已建立，而第三次握手可能在传输中丢失，服务端会认为连接是无效的，这时如果Client端向Server写数据，Server端将以RST包响应，这时便感知到Server的错误。</p>
+<p>总之，三次握手可以保证任何一次握手的失败都是可感知的，不会浪费资源</p>
+<p>三次握手出现错误时的应对措施<br>     第一次握手A发送SYN传输失败，A,B都不会申请资源，连接失败。如果一段时间内发出多个SYN连接请求，那么A只会接受它最后发送的那个SYN的SYN+ACK回应，忽略其他回应全部回应，B中多申请的资源也会释放</p>
+<p> 第二次握手B发送SYN+ACK传输失败，A不会申请资源，B申请了资源，但收不到A的ACK，过一段时间释放资源。如果是收到了多个A的SYN请求，B都会回复SYN+ACK，但A只会承认其中它最早发送的那个SYN的回应，并回复最后一次握手的ACK</p>
+<p> 第三次握手ACK传输失败，B没有收到ACK，释放资源，对于后序的A的传输数据返回RST。实际上B会因为没有收到A的ACK会多次发送SYN+ACK，次数是可以设置的，如果最后还是没有收到A的ACK，则释放资源，对A的数据传输返回RST</p>
+]]></content>
+  </entry>
+  <entry>
     <title>宏定义函数</title>
     <url>/2023/05/27/%E5%AE%8F%E5%AE%9A%E4%B9%89%E5%87%BD%E6%95%B0/</url>
     <content><![CDATA[<h1 id="宏定义函数是什么"><a href="#宏定义函数是什么" class="headerlink" title="# 宏定义函数是什么"></a># 宏定义函数是什么</h1><span id="more"></span>
@@ -29,6 +59,11 @@
     <title></title>
     <url>/2023/06/04/%E6%8E%92%E5%BA%8F%E7%AE%97%E6%B3%95/</url>
     <content><![CDATA[<h1 id="排序算法"><a href="#排序算法" class="headerlink" title="排序算法"></a>排序算法</h1><h2 id="选择排序"><a href="#选择排序" class="headerlink" title="选择排序"></a>选择排序</h2>]]></content>
+  </entry>
+  <entry>
+    <title></title>
+    <url>/2023/06/18/%E7%BA%BF%E6%80%A7%E8%A1%A8+%E5%93%88%E5%B8%8C%E8%A1%A8LRU%E7%AE%97%E6%B3%95/</url>
+    <content><![CDATA[<h1 id="线性表-哈希表-gt-gt-LRU算法"><a href="#线性表-哈希表-gt-gt-LRU算法" class="headerlink" title="线性表+哈希表&gt;&gt;LRU算法"></a>线性表+哈希表&gt;&gt;LRU算法</h1>]]></content>
   </entry>
   <entry>
     <title>约瑟夫环问题</title>
