@@ -7,28 +7,8 @@
   </entry>
   <entry>
     <title></title>
-    <url>/2023/06/13/TcpIP%E5%8D%8F%E8%AE%AE%E4%B8%89%E6%AC%A1%E6%8F%A1%E6%89%8B%E7%9A%84%E5%BF%85%E8%A6%81%E6%80%A7/</url>
-    <content><![CDATA[<h1 id="Tcp-x2F-IP协议三次握手的必要性"><a href="#Tcp-x2F-IP协议三次握手的必要性" class="headerlink" title="Tcp&#x2F;IP协议三次握手的必要性"></a>Tcp&#x2F;IP协议三次握手的必要性</h1><span id="more"></span>
-
-<p>TCP&#x2F;IP协议中，TCP协议提供可靠的连接服务，采用三次握手建立一个连接，如下图所示。</p>
-<p><img src="D:\Blog\host_source\Snipaste_2023-06-13_21-54-38.png"></p>
-<p>主机A为客户机，主机B为服务器</p>
-<p>确认号：其数值等于发送方的发送序号 +1(即接收方期望接收的下一个序列号)。</p>
-<p>说明：</p>
-<p>（1）第一次握手：建立连接时，客户端A发送SYN包（SYN&#x3D;j）到服务器B，并进入SYN_SEND状态，等待服务器B确认。</p>
-<p>（2）第二次握手：服务器B收到SYN包，必须确认客户A的SYN（ACK&#x3D;j+1），同时自己也发送一个SYN包（SYN&#x3D;k），即SYN+ACK包，此时服务器B进入SYN_RECV状态。</p>
-<p>（3）第三次握手：客户端A收到服务器B的SYN＋ACK包，向服务器B发送确认包ACK（ACK&#x3D;k+1），此包发送完毕，客户端A和服务器B进入ESTABLISHED状态，完成三次握手。</p>
-<p>必要性：</p>
-<p>这两天一直在考虑一个问题，就是两者为何要三次握手呢，一次或者两次不行吗</p>
-<p>考虑一次的问题，首先tcp是面向连接，一次握手肯定建立不了连接，因为客户机给服务器发出请求信息却没有得到回应，客户机是没法判定是否发送成功然后建立连接的。</p>
-<p>再看两次，假设只有两次握手，比如图中的1，2步，当A想要建立连接时发送一个SYN，然后等待ACK，结果这个SYN因为网络问题没有及时到达B，所以A在一段时间内没收到ACK后，再发送一个SYN，这次B顺利收到，接着A也收到ACK，这时A发送的第一个SYN终于到了B，对于B来说这是一个新连接请求，然后B又为这个连接申请资源，返回ACK，然而这个SYN是个无效的请求，A收到这个SYN的ACK后也并不会理会它，而B却不知道，B会一直为这个连接维持着资源，造成资源的浪费。</p>
-<p>三次连接就没毛病了？？是的</p>
-<p>两次握手的问题在于服务器端不知道一个SYN是否是无效的，而三次握手机制因为客户端会给服务器回复第二次握手，也意味着服务器会等待客户端的第三次握手，如果第三次握手迟迟不来，服务器便会认为这个SYN是无效的，释放相关资源。但这时有个问题就是客户端完成第二次握手便认为连接已建立，而第三次握手可能在传输中丢失，服务端会认为连接是无效的，这时如果Client端向Server写数据，Server端将以RST包响应，这时便感知到Server的错误。</p>
-<p>总之，三次握手可以保证任何一次握手的失败都是可感知的，不会浪费资源</p>
-<p>三次握手出现错误时的应对措施<br>     第一次握手A发送SYN传输失败，A,B都不会申请资源，连接失败。如果一段时间内发出多个SYN连接请求，那么A只会接受它最后发送的那个SYN的SYN+ACK回应，忽略其他回应全部回应，B中多申请的资源也会释放</p>
-<p> 第二次握手B发送SYN+ACK传输失败，A不会申请资源，B申请了资源，但收不到A的ACK，过一段时间释放资源。如果是收到了多个A的SYN请求，B都会回复SYN+ACK，但A只会承认其中它最早发送的那个SYN的回应，并回复最后一次握手的ACK</p>
-<p> 第三次握手ACK传输失败，B没有收到ACK，释放资源，对于后序的A的传输数据返回RST。实际上B会因为没有收到A的ACK会多次发送SYN+ACK，次数是可以设置的，如果最后还是没有收到A的ACK，则释放资源，对A的数据传输返回RST</p>
-]]></content>
+    <url>/2023/06/24/#%20%E8%BA%AB%E4%BB%BD%E9%AA%8C%E8%AF%81%E6%9C%BA%E5%88%B6%20session/</url>
+    <content><![CDATA[<h1 id="身份验证机制-session"><a href="#身份验证机制-session" class="headerlink" title="# 身份验证机制 session"></a># 身份验证机制 session</h1>]]></content>
   </entry>
   <entry>
     <title>宏定义函数</title>
@@ -57,8 +37,41 @@
   </entry>
   <entry>
     <title></title>
+    <url>/2023/06/13/TcpIP%E5%8D%8F%E8%AE%AE%E4%B8%89%E6%AC%A1%E6%8F%A1%E6%89%8B%E7%9A%84%E5%BF%85%E8%A6%81%E6%80%A7/</url>
+    <content><![CDATA[<h1 id="Tcp-x2F-IP协议三次握手的必要性"><a href="#Tcp-x2F-IP协议三次握手的必要性" class="headerlink" title="Tcp&#x2F;IP协议三次握手的必要性"></a>Tcp&#x2F;IP协议三次握手的必要性</h1><span id="more"></span>
+
+<p>TCP&#x2F;IP协议中，TCP协议提供可靠的连接服务，采用三次握手建立一个连接，如下图所示。</p>
+<p><img src="D:\Blog\host_source\Snipaste_2023-06-13_21-54-38.png"></p>
+<p>主机A为客户机，主机B为服务器</p>
+<p>确认号：其数值等于发送方的发送序号 +1(即接收方期望接收的下一个序列号)。</p>
+<p>说明：</p>
+<p>（1）第一次握手：建立连接时，客户端A发送SYN包（SYN&#x3D;j）到服务器B，并进入SYN_SEND状态，等待服务器B确认。</p>
+<p>（2）第二次握手：服务器B收到SYN包，必须确认客户A的SYN（ACK&#x3D;j+1），同时自己也发送一个SYN包（SYN&#x3D;k），即SYN+ACK包，此时服务器B进入SYN_RECV状态。</p>
+<p>（3）第三次握手：客户端A收到服务器B的SYN＋ACK包，向服务器B发送确认包ACK（ACK&#x3D;k+1），此包发送完毕，客户端A和服务器B进入ESTABLISHED状态，完成三次握手。</p>
+<p>必要性：</p>
+<p>这两天一直在考虑一个问题，就是两者为何要三次握手呢，一次或者两次不行吗</p>
+<p>考虑一次的问题，首先tcp是面向连接，一次握手肯定建立不了连接，因为客户机给服务器发出请求信息却没有得到回应，客户机是没法判定是否发送成功然后建立连接的。</p>
+<p>再看两次，假设只有两次握手，比如图中的1，2步，当A想要建立连接时发送一个SYN，然后等待ACK，结果这个SYN因为网络问题没有及时到达B，所以A在一段时间内没收到ACK后，再发送一个SYN，这次B顺利收到，接着A也收到ACK，这时A发送的第一个SYN终于到了B，对于B来说这是一个新连接请求，然后B又为这个连接申请资源，返回ACK，然而这个SYN是个无效的请求，A收到这个SYN的ACK后也并不会理会它，而B却不知道，B会一直为这个连接维持着资源，造成资源的浪费。</p>
+<p>三次连接就没毛病了？？是的</p>
+<p>两次握手的问题在于服务器端不知道一个SYN是否是无效的，而三次握手机制因为客户端会给服务器回复第二次握手，也意味着服务器会等待客户端的第三次握手，如果第三次握手迟迟不来，服务器便会认为这个SYN是无效的，释放相关资源。但这时有个问题就是客户端完成第二次握手便认为连接已建立，而第三次握手可能在传输中丢失，服务端会认为连接是无效的，这时如果Client端向Server写数据，Server端将以RST包响应，这时便感知到Server的错误。</p>
+<p>总之，三次握手可以保证任何一次握手的失败都是可感知的，不会浪费资源</p>
+<p>三次握手出现错误时的应对措施<br>     第一次握手A发送SYN传输失败，A,B都不会申请资源，连接失败。如果一段时间内发出多个SYN连接请求，那么A只会接受它最后发送的那个SYN的SYN+ACK回应，忽略其他回应全部回应，B中多申请的资源也会释放</p>
+<p> 第二次握手B发送SYN+ACK传输失败，A不会申请资源，B申请了资源，但收不到A的ACK，过一段时间释放资源。如果是收到了多个A的SYN请求，B都会回复SYN+ACK，但A只会承认其中它最早发送的那个SYN的回应，并回复最后一次握手的ACK</p>
+<p> 第三次握手ACK传输失败，B没有收到ACK，释放资源，对于后序的A的传输数据返回RST。实际上B会因为没有收到A的ACK会多次发送SYN+ACK，次数是可以设置的，如果最后还是没有收到A的ACK，则释放资源，对A的数据传输返回RST</p>
+]]></content>
+  </entry>
+  <entry>
+    <title></title>
     <url>/2023/06/04/%E6%8E%92%E5%BA%8F%E7%AE%97%E6%B3%95/</url>
     <content><![CDATA[<h1 id="排序算法"><a href="#排序算法" class="headerlink" title="排序算法"></a>排序算法</h1><h2 id="选择排序"><a href="#选择排序" class="headerlink" title="选择排序"></a>选择排序</h2>]]></content>
+  </entry>
+  <entry>
+    <title></title>
+    <url>/2023/06/29/%E5%BC%95%E7%94%A8%E5%92%8C%E6%8C%87%E9%92%88%E7%9A%84%E8%81%94%E7%B3%BB%E5%92%8C%E5%8C%BA%E5%88%AB%EF%BC%9A/</url>
+    <content><![CDATA[<p>引用和指针的联系和区别：</p>
+<p>new&#x2F;delete 和mallco&#x2F;free的区别：</p>
+<p>const常量和宏定义常量有什么区别：</p>
+]]></content>
   </entry>
   <entry>
     <title></title>
@@ -104,6 +117,18 @@
 <figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span> &#123;</span></span><br><span class="line">    public <span class="type">int</span> <span class="title function_">lastRemaining</span><span class="params">(<span class="type">int</span> n, <span class="type">int</span> m)</span> &#123;</span><br><span class="line">        <span class="type">int</span> value=<span class="number">0</span>;</span><br><span class="line">            <span class="keyword">for</span>(<span class="type">int</span> i=<span class="number">1</span>;i&lt;=n;i++)</span><br><span class="line">            &#123;</span><br><span class="line">                value=(value+m)%i;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">return</span>  value;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
 <h1 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h1><p>我想，通过本篇文章你应该掌握和理解了约瑟夫环问题，这种裸的约瑟夫环问题出现的概率很大，考察很频繁，链表模拟是根本思想，有序集合模拟链表是提升，而公式递推才是最有学习价值的地方，如果你刚开始接触不理解可以多看几遍。如果能用公式递推给面试官说两句，讲讲原理，那一定会让面试官眼前一亮的</p>
 ]]></content>
+  </entry>
+  <entry>
+    <title>最大公约数</title>
+    <url>/2023/05/27/%EF%BC%88gcd)%E6%9C%80%E5%A4%A7%E5%85%AC%E7%BA%A6%E6%95%B0/</url>
+    <content><![CDATA[<p>#（gcd)最大公约数的三种求法</p>
+<span id="more"></span>
+<h2 id="第一种求法："><a href="#第一种求法：" class="headerlink" title="第一种求法："></a>第一种求法：</h2><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (a == b)</span><br><span class="line">		<span class="keyword">return</span> a;</span><br><span class="line">	<span class="keyword">if</span> (a &gt; b)</span><br><span class="line">		<span class="keyword">return</span> gcd(a, a - b);</span><br><span class="line">	<span class="keyword">if</span> (a &lt; b)</span><br><span class="line">		<span class="keyword">return</span> gcd(b, b - a);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="第二种求法："><a href="#第二种求法：" class="headerlink" title="第二种求法："></a>第二种求法：</h2><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;<span class="comment">//默认a&gt;b!</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (b == <span class="number">0</span>)</span><br><span class="line">		<span class="keyword">return</span> a;</span><br><span class="line">	<span class="keyword">else</span></span><br><span class="line">		<span class="keyword">return</span> gcd(b, a % b);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="其实第二种方法的过程就是："><a href="#其实第二种方法的过程就是：" class="headerlink" title="其实第二种方法的过程就是："></a>其实第二种方法的过程就是：</h3><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">​```c</span><br><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (a &lt; b) &#123;</span><br><span class="line">		swao(a, b);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">while</span> (b != <span class="number">0</span>) &#123;</span><br><span class="line">		<span class="type">int</span> r = a % b;</span><br><span class="line">		a = b;</span><br><span class="line">		b = r;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> a;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight"><table><tr><td class="code"><pre><span class="line"></span><br></pre></td></tr></table></figure>]]></content>
   </entry>
   <entry>
     <title>Struct</title>
@@ -202,17 +227,5 @@
 <p>这种方式不能指明结构体类型名而是直接定义结构体变量，并且在值定义一次结构体变量时适用，无结构体名的结构体类型是无法重复使用的。</p>
 <p>也就是说，后面程序不能再定义此类型变量了，除非再写一次重复的struct。</p>
 ]]></content>
-  </entry>
-  <entry>
-    <title>最大公约数</title>
-    <url>/2023/05/27/%EF%BC%88gcd)%E6%9C%80%E5%A4%A7%E5%85%AC%E7%BA%A6%E6%95%B0/</url>
-    <content><![CDATA[<p>#（gcd)最大公约数的三种求法</p>
-<span id="more"></span>
-<h2 id="第一种求法："><a href="#第一种求法：" class="headerlink" title="第一种求法："></a>第一种求法：</h2><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (a == b)</span><br><span class="line">		<span class="keyword">return</span> a;</span><br><span class="line">	<span class="keyword">if</span> (a &gt; b)</span><br><span class="line">		<span class="keyword">return</span> gcd(a, a - b);</span><br><span class="line">	<span class="keyword">if</span> (a &lt; b)</span><br><span class="line">		<span class="keyword">return</span> gcd(b, b - a);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h2 id="第二种求法："><a href="#第二种求法：" class="headerlink" title="第二种求法："></a>第二种求法：</h2><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;<span class="comment">//默认a&gt;b!</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (b == <span class="number">0</span>)</span><br><span class="line">		<span class="keyword">return</span> a;</span><br><span class="line">	<span class="keyword">else</span></span><br><span class="line">		<span class="keyword">return</span> gcd(b, a % b);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="其实第二种方法的过程就是："><a href="#其实第二种方法的过程就是：" class="headerlink" title="其实第二种方法的过程就是："></a>其实第二种方法的过程就是：</h3><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">​```c</span><br><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (a &lt; b) &#123;</span><br><span class="line">		swao(a, b);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">while</span> (b != <span class="number">0</span>) &#123;</span><br><span class="line">		<span class="type">int</span> r = a % b;</span><br><span class="line">		a = b;</span><br><span class="line">		b = r;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> a;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight"><table><tr><td class="code"><pre><span class="line"></span><br></pre></td></tr></table></figure>]]></content>
   </entry>
 </search>
