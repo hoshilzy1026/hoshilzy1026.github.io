@@ -12,6 +12,12 @@
   </entry>
   <entry>
     <title></title>
+    <url>/2023/07/07/C++%E6%99%BA%E8%83%BD%E6%8C%87%E9%92%88%E7%9A%84%E5%BA%95%E5%B1%82%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/</url>
+    <content><![CDATA[<p>C++智能指针的底层实现原理</p>
+]]></content>
+  </entry>
+  <entry>
+    <title></title>
     <url>/2023/06/18/IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8/</url>
     <content><![CDATA[<h1 id="IO多路复用"><a href="#IO多路复用" class="headerlink" title="IO多路复用"></a>IO多路复用</h1><span id="more"></span>]]></content>
   </entry>
@@ -19,18 +25,6 @@
     <title></title>
     <url>/2023/07/25/STL/</url>
     <content><![CDATA[<h1 id="STL"><a href="#STL" class="headerlink" title="STL"></a>STL</h1>]]></content>
-  </entry>
-  <entry>
-    <title></title>
-    <url>/2023/07/07/C++%E6%99%BA%E8%83%BD%E6%8C%87%E9%92%88%E7%9A%84%E5%BA%95%E5%B1%82%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/</url>
-    <content><![CDATA[<p>C++智能指针的底层实现原理</p>
-]]></content>
-  </entry>
-  <entry>
-    <title></title>
-    <url>/2023/07/07/%E4%B8%80%E7%AF%87%E6%96%87%E7%AB%A0%E5%BD%BB%E5%BA%95%E6%90%9E%E6%87%82%E5%9B%9E%E8%B0%83%E5%87%BD%E6%95%B0/</url>
-    <content><![CDATA[<p>一篇文章彻底搞懂回调函数</p>
-]]></content>
   </entry>
   <entry>
     <title></title>
@@ -55,6 +49,12 @@
 <p>三次握手出现错误时的应对措施<br>     第一次握手A发送SYN传输失败，A,B都不会申请资源，连接失败。如果一段时间内发出多个SYN连接请求，那么A只会接受它最后发送的那个SYN的SYN+ACK回应，忽略其他回应全部回应，B中多申请的资源也会释放</p>
 <p> 第二次握手B发送SYN+ACK传输失败，A不会申请资源，B申请了资源，但收不到A的ACK，过一段时间释放资源。如果是收到了多个A的SYN请求，B都会回复SYN+ACK，但A只会承认其中它最早发送的那个SYN的回应，并回复最后一次握手的ACK</p>
 <p> 第三次握手ACK传输失败，B没有收到ACK，释放资源，对于后序的A的传输数据返回RST。实际上B会因为没有收到A的ACK会多次发送SYN+ACK，次数是可以设置的，如果最后还是没有收到A的ACK，则释放资源，对A的数据传输返回RST</p>
+]]></content>
+  </entry>
+  <entry>
+    <title></title>
+    <url>/2023/07/07/%E4%B8%80%E7%AF%87%E6%96%87%E7%AB%A0%E5%BD%BB%E5%BA%95%E6%90%9E%E6%87%82%E5%9B%9E%E8%B0%83%E5%87%BD%E6%95%B0/</url>
+    <content><![CDATA[<p>一篇文章彻底搞懂回调函数</p>
 ]]></content>
   </entry>
   <entry>
@@ -89,6 +89,12 @@
   </entry>
   <entry>
     <title></title>
+    <url>/2023/07/07/%E6%89%8B%E5%86%99%E5%8D%95%E4%BE%8B%E6%A8%A1%E5%BC%8F/</url>
+    <content><![CDATA[<p>手写单例模式</p>
+]]></content>
+  </entry>
+  <entry>
+    <title></title>
     <url>/2023/06/29/%E5%BC%95%E7%94%A8%E5%92%8C%E6%8C%87%E9%92%88%E7%9A%84%E8%81%94%E7%B3%BB%E5%92%8C%E5%8C%BA%E5%88%AB%EF%BC%9A/</url>
     <content><![CDATA[<p>引用和指针的联系和区别：</p>
 <p>new&#x2F;delete 和mallco&#x2F;free的区别：</p>
@@ -104,24 +110,6 @@
     <title></title>
     <url>/2023/07/25/%E7%A9%BA%E9%97%B4%E9%85%8D%E7%BD%AE%E5%99%A8%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90/</url>
     <content><![CDATA[<h1 id="空间配置器源码剖析"><a href="#空间配置器源码剖析" class="headerlink" title="空间配置器源码剖析"></a>空间配置器源码剖析</h1>]]></content>
-  </entry>
-  <entry>
-    <title></title>
-    <url>/2023/07/07/%E6%89%8B%E5%86%99%E5%8D%95%E4%BE%8B%E6%A8%A1%E5%BC%8F/</url>
-    <content><![CDATA[<p>手写单例模式</p>
-]]></content>
-  </entry>
-  <entry>
-    <title>最大公约数</title>
-    <url>/2023/05/27/%EF%BC%88gcd)%E6%9C%80%E5%A4%A7%E5%85%AC%E7%BA%A6%E6%95%B0/</url>
-    <content><![CDATA[<p>#（gcd)最大公约数的三种求法</p>
-<span id="more"></span>
-<h2 id="第一种求法："><a href="#第一种求法：" class="headerlink" title="第一种求法："></a>第一种求法：</h2><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (a == b)</span><br><span class="line">		<span class="keyword">return</span> a;</span><br><span class="line">	<span class="keyword">if</span> (a &gt; b)</span><br><span class="line">		<span class="keyword">return</span> gcd(a, a - b);</span><br><span class="line">	<span class="keyword">if</span> (a &lt; b)</span><br><span class="line">		<span class="keyword">return</span> gcd(b, b - a);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h2 id="第二种求法："><a href="#第二种求法：" class="headerlink" title="第二种求法："></a>第二种求法：</h2><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;<span class="comment">//默认a&gt;b!</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (b == <span class="number">0</span>)</span><br><span class="line">		<span class="keyword">return</span> a;</span><br><span class="line">	<span class="keyword">else</span></span><br><span class="line">		<span class="keyword">return</span> gcd(b, a % b);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="其实第二种方法的过程就是："><a href="#其实第二种方法的过程就是：" class="headerlink" title="其实第二种方法的过程就是："></a>其实第二种方法的过程就是：</h3><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">​```c</span><br><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (a &lt; b) &#123;</span><br><span class="line">		swao(a, b);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">while</span> (b != <span class="number">0</span>) &#123;</span><br><span class="line">		<span class="type">int</span> r = a % b;</span><br><span class="line">		a = b;</span><br><span class="line">		b = r;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> a;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight"><table><tr><td class="code"><pre><span class="line"></span><br></pre></td></tr></table></figure>]]></content>
   </entry>
   <entry>
     <title></title>
@@ -150,6 +138,18 @@
 <figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span><span class="string">&lt;list&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span><span class="string">&lt;unordered_map&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"><span class="keyword">using</span> std::cout;</span><br><span class="line"><span class="keyword">using</span> std::endl;</span><br><span class="line"><span class="keyword">class</span> <span class="title class_">LRU</span>&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">LRU</span>(<span class="type">int</span> cap)</span><br><span class="line">    :_capacity(cap)</span><br><span class="line">    &#123;</span><br><span class="line"></span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;LRU(int cap)&quot;</span> &lt;&lt; endl;</span><br><span class="line">        </span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">get</span><span class="params">(<span class="type">int</span> key)</span></span>;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">put</span><span class="params">(<span class="type">int</span> key,<span class="type">int</span> value)</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">cacheNode</span></span><br><span class="line">    &#123;</span><br><span class="line">        <span class="built_in">cacheNode</span>(<span class="type">int</span> key,<span class="type">int</span> v)</span><br><span class="line">        :_key(key)</span><br><span class="line">        ,_value(v)</span><br><span class="line">        &#123;</span><br><span class="line"></span><br><span class="line">            cout &lt;&lt; <span class="string">&quot;cacheNode(int key,int v)&quot;</span> &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">        <span class="type">int</span> _key;</span><br><span class="line">        <span class="type">int</span> _value;</span><br><span class="line"></span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    list&lt;cacheNode&gt; _nodes;<span class="comment">//双向链表存，</span></span><br><span class="line">    <span class="type">int</span> _capacity;<span class="comment">//缓存的大小</span></span><br><span class="line">    unordered_map&lt;<span class="type">int</span>,list&lt;cacheNode&gt;::iterator &gt; _cache;<span class="comment">//无序map ，</span></span><br><span class="line">    <span class="comment">//存放的是 key值，和链表的迭代器</span></span><br><span class="line"></span><br><span class="line">&#125;;</span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">LRU::get</span><span class="params">(<span class="type">int</span> key)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//TODO 判断key值是否在map中，如果存在，直接把他</span></span><br><span class="line">    <span class="comment">//更新在链表的头，并且返回他的value,不存在则返回-1；</span></span><br><span class="line">    </span><br><span class="line">    <span class="keyword">auto</span> it = _cache.<span class="built_in">find</span>(key);<span class="comment">//unordered_map 的 find 函数返回值为</span></span><br><span class="line">                            <span class="comment">// 该key值所对应的迭代器</span></span><br><span class="line">    <span class="keyword">if</span>(it!=_cache.<span class="built_in">end</span>())</span><br><span class="line">    &#123;</span><br><span class="line">        _nodes.<span class="built_in">splice</span>(_nodes.<span class="built_in">begin</span>(),_nodes,it-&gt;second);</span><br><span class="line">        <span class="comment">//链表的splice 函数可以将 _nodes链表中的 it-&gt;second所指向的元素</span></span><br><span class="line">        <span class="comment">//转移到_nodes.begin()的前面</span></span><br><span class="line">        <span class="keyword">return</span> it-&gt;second-&gt;_value;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">LRU::put</span><span class="params">(<span class="type">int</span> key,<span class="type">int</span> value)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="comment">//TODO 判断key 是否存在，如果存在那么，直接放在链表表头</span></span><br><span class="line">    <span class="comment">//如果不存在则判断链表是不是满的，如果满了删除末尾元素</span></span><br><span class="line">    <span class="comment">//然后在链表头插入，并且插入到map中</span></span><br><span class="line">    </span><br><span class="line">    <span class="keyword">auto</span> it = _cache.<span class="built_in">find</span>(key); </span><br><span class="line">    <span class="keyword">if</span>(it!=_cache.<span class="built_in">end</span>())</span><br><span class="line">    &#123;</span><br><span class="line">        it-&gt;second-&gt;_value= value;</span><br><span class="line">        _nodes.<span class="built_in">splice</span>(_nodes.<span class="built_in">begin</span>(),_nodes,it-&gt;second);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">if</span>((<span class="type">int</span>)_nodes.<span class="built_in">size</span>()==_capacity)</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="keyword">auto</span> &amp;deleteNode = _nodes.<span class="built_in">back</span>();</span><br><span class="line">            _cache.<span class="built_in">erase</span>(deleteNode._key);<span class="comment">//unordered_map 的 earse操作</span></span><br><span class="line">                                        <span class="comment">// size_type earse(const key_type&amp;key);</span></span><br><span class="line">            _nodes.<span class="built_in">pop_back</span>();</span><br><span class="line">        &#125;</span><br><span class="line">        _nodes.<span class="built_in">push_front</span>(<span class="built_in">cacheNode</span>(key,value));</span><br><span class="line">        _cache.<span class="built_in">insert</span>(std::<span class="built_in">make_pair</span>(key,_nodes.<span class="built_in">begin</span>()));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">test0</span><span class="params">()</span></span>&#123;</span><br><span class="line"></span><br><span class="line">    </span><br><span class="line">    <span class="function">LRU <span class="title">lru</span><span class="params">(<span class="number">2</span>)</span></span>;</span><br><span class="line">    lru.<span class="built_in">put</span>(<span class="number">1</span>,<span class="number">88</span>);</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;get(1)&quot;</span> &lt;&lt; lru.<span class="built_in">get</span>(<span class="number">1</span>) &lt;&lt; endl;</span><br><span class="line">    lru.<span class="built_in">put</span>(<span class="number">3</span>,<span class="number">99</span>);</span><br><span class="line">    lru.<span class="built_in">put</span>(<span class="number">4</span>,<span class="number">77</span>);</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;get(1)&quot;</span> &lt;&lt; lru.<span class="built_in">get</span>(<span class="number">1</span>) &lt;&lt; endl;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">(<span class="type">void</span>)</span></span>&#123;</span><br><span class="line">    <span class="built_in">test0</span>();</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 ]]></content>
+  </entry>
+  <entry>
+    <title>最大公约数</title>
+    <url>/2023/05/27/%EF%BC%88gcd)%E6%9C%80%E5%A4%A7%E5%85%AC%E7%BA%A6%E6%95%B0/</url>
+    <content><![CDATA[<p>#（gcd)最大公约数的三种求法</p>
+<span id="more"></span>
+<h2 id="第一种求法："><a href="#第一种求法：" class="headerlink" title="第一种求法："></a>第一种求法：</h2><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (a == b)</span><br><span class="line">		<span class="keyword">return</span> a;</span><br><span class="line">	<span class="keyword">if</span> (a &gt; b)</span><br><span class="line">		<span class="keyword">return</span> gcd(a, a - b);</span><br><span class="line">	<span class="keyword">if</span> (a &lt; b)</span><br><span class="line">		<span class="keyword">return</span> gcd(b, b - a);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="第二种求法："><a href="#第二种求法：" class="headerlink" title="第二种求法："></a>第二种求法：</h2><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;<span class="comment">//默认a&gt;b!</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (b == <span class="number">0</span>)</span><br><span class="line">		<span class="keyword">return</span> a;</span><br><span class="line">	<span class="keyword">else</span></span><br><span class="line">		<span class="keyword">return</span> gcd(b, a % b);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="其实第二种方法的过程就是："><a href="#其实第二种方法的过程就是：" class="headerlink" title="其实第二种方法的过程就是："></a>其实第二种方法的过程就是：</h3><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">​```c</span><br><span class="line"><span class="type">int</span> <span class="title function_">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (a &lt; b) &#123;</span><br><span class="line">		swao(a, b);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">while</span> (b != <span class="number">0</span>) &#123;</span><br><span class="line">		<span class="type">int</span> r = a % b;</span><br><span class="line">		a = b;</span><br><span class="line">		b = r;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> a;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight"><table><tr><td class="code"><pre><span class="line"></span><br></pre></td></tr></table></figure>]]></content>
   </entry>
   <entry>
     <title>约瑟夫环问题</title>
