@@ -34,8 +34,8 @@
 <meta property="og:image" content="https://img-blog.csdnimg.cn/213423c21fa54ef6b1d6e3d19bce7834.png#pic_center">
 <meta property="og:image" content="https://img-blog.csdnimg.cn/f84f057489844f3d82f7bc45bcb67d62.png#pic_center">
 <meta property="og:image" content="https://img-blog.csdnimg.cn/fd5c2d8029aa44849d3f908571635ae0.png#pic_center">
-<meta property="article:published_time" content="2025-09-19T06:20:01.170Z">
-<meta property="article:modified_time" content="2023-05-27T06:03:18.000Z">
+<meta property="article:published_time" content="2025-09-19T10:15:55.414Z">
+<meta property="article:modified_time" content="2025-09-19T10:15:55.414Z">
 <meta property="article:author" content="lzy">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="https://img-blog.csdnimg.cn/b2ac040659104763b4dbf006bf0733a6.jpeg#pic_center">
@@ -224,15 +224,8 @@
               </span>
               <span class="post-meta-item-text">发表于</span>
 
-              <time title="创建时间：2025-09-19 14:20:01" itemprop="dateCreated datePublished" datetime="2025-09-19T14:20:01+08:00">2025-09-19</time>
+              <time title="创建时间：2025-09-19 18:15:55" itemprop="dateCreated datePublished" datetime="2025-09-19T18:15:55+08:00">2025-09-19</time>
             </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-05-27 14:03:18" itemprop="dateModified" datetime="2023-05-27T14:03:18+08:00">2023-05-27</time>
-              </span>
 
           <br>
             <span class="post-meta-item" title="本文字数">
@@ -240,7 +233,7 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>2.2k</span>
+              <span>2.1k</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
@@ -293,8 +286,7 @@
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span> &#123;</span></span><br><span class="line">    <span class="type">int</span> index=<span class="number">0</span>;</span><br><span class="line">    public <span class="type">int</span> <span class="title function_">lastRemaining</span><span class="params">(<span class="type">int</span> n, <span class="type">int</span> m)</span> &#123;</span><br><span class="line">         <span class="keyword">if</span>(n==<span class="number">1</span>)</span><br><span class="line">            <span class="keyword">return</span> <span class="number">0</span>;      </span><br><span class="line">        <span class="keyword">return</span> (lastRemaining(n<span class="number">-1</span>,m)+m)%n;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>
 <p>但是递归效率因为有个来回的规程，效率相比直接迭代差一些，也可从前往后迭代：</p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span> &#123;</span></span><br><span class="line">    public <span class="type">int</span> <span class="title function_">lastRemaining</span><span class="params">(<span class="type">int</span> n, <span class="type">int</span> m)</span> &#123;</span><br><span class="line">        <span class="type">int</span> value=<span class="number">0</span>;</span><br><span class="line">            <span class="keyword">for</span>(<span class="type">int</span> i=<span class="number">1</span>;i&lt;=n;i++)</span><br><span class="line">            &#123;</span><br><span class="line">                value=(value+m)%i;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">return</span>  value;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-<h1 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h1><p>我想，通过本篇文章你应该掌握和理解了约瑟夫环问题，这种裸的约瑟夫环问题出现的概率很大，考察很频繁，链表模拟是根本思想，有序集合模拟链表是提升，而公式递推才是最有学习价值的地方，如果你刚开始接触不理解可以多看几遍。如果能用公式递推给面试官说两句，讲讲原理，那一定会让面试官眼前一亮的</p>
-
+<h1 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h1>
     </div>
 
     
@@ -309,13 +301,10 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/2022/09/18/lru/" rel="prev" title="LRU">
-      <i class="fa fa-chevron-left"></i> LRU
+    <a href="/2025/09/19/crimson%E9%A2%84%E8%A7%88%E7%89%88/" rel="prev" title="crmson预览版.md">
+      <i class="fa fa-chevron-left"></i> crmson预览版.md
     </a></div>
-      <div class="post-nav-item">
-    <a href="/2025/09/19/mymap_myset/" rel="next" title="Mymap Myset">
-      Mymap Myset <i class="fa fa-chevron-right"></i>
-    </a></div>
+      <div class="post-nav-item"></div>
     </div>
       </footer>
     
