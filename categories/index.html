@@ -370,40 +370,6 @@
     <span title="站点阅读时长">1:02</span>
 </div>
 
-<div id="ga_stats">
-  <span id="ga_uv">总访客数: <span>0</span></span>
-  <span class="post-meta-divider">|</span>
-  <span id="ga_pv">总访问量: <span>0</span></span>
-</div>
-
-<script>
-  (function() {
-    const GA_TRACKING_ID = 'G-Y6XQ2TRE3Y';
-    let uv = 0;
-    let pv = 0;
-
-    // gtag 页面视图事件
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', GA_TRACKING_ID);
-
-    // 访问量计数
-    function updateStats() {
-      // 每次页面加载都算一次 PV
-      pv += 1;
-      // UV 使用 localStorage 进行简单统计
-      if (!localStorage.getItem('visited')) {
-        uv += 1;
-        localStorage.setItem('visited', 'true');
-      }
-
-      document.querySelector('#ga_uv span').textContent = uv;
-      document.querySelector('#ga_pv span').textContent = pv;
-    }
-
-    document.addEventListener('DOMContentLoaded', updateStats);
-  })();
 </script>
 
 
