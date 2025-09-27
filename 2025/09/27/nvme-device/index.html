@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-m.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-m.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"hoshilzy1026.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":false,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.json"};
+  </script>
+
+  <meta name="description" content="现在的存储速度，传统 SATA SSD 已经跟不上了。于是 NVMe 出场了——更快、更并行、延迟低。Ceph 的 Crimson 正是为了迎接这样的下一代存储而生，它用 Seastar 来管理这些 NVMe 设备，把每个设备、每个队列都当作可调度的资源，让多核 CPU 的性能被充分发挥。今天，我们就从 NVMe 设备聊起，顺着 Crimson 的设备管理一路看下去，看看底层到底是怎么跑的。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="crimson中的设备管理从Nvme 到Seastore">
+<meta property="og:url" content="https://hoshilzy1026.github.io/2025/09/27/nvme-device/index.html">
+<meta property="og:site_name" content="Hoshi">
+<meta property="og:description" content="现在的存储速度，传统 SATA SSD 已经跟不上了。于是 NVMe 出场了——更快、更并行、延迟低。Ceph 的 Crimson 正是为了迎接这样的下一代存储而生，它用 Seastar 来管理这些 NVMe 设备，把每个设备、每个队列都当作可调度的资源，让多核 CPU 的性能被充分发挥。今天，我们就从 NVMe 设备聊起，顺着 Crimson 的设备管理一路看下去，看看底层到底是怎么跑的。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2025-09-27T06:31:43.000Z">
+<meta property="article:modified_time" content="2025-09-27T08:45:04.650Z">
+<meta property="article:author" content="lzy">
+<meta property="article:tag" content="Crimson">
+<meta property="article:tag" content="nvme">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://hoshilzy1026.github.io/2025/09/27/nvme-device/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>crimson中的设备管理从Nvme 到Seastore | Hoshi</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y6XQ2TRE3Y"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-Y6XQ2TRE3Y');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hoshi</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://hoshilzy1026.github.io/2025/09/27/nvme-device/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="lzy">
+      <meta itemprop="description" content="选择有时候比努力更重要">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hoshi">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          crimson中的设备管理从Nvme 到Seastore
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2025-09-27 14:31:43 / 修改时间：16:45:04" itemprop="dateCreated datePublished" datetime="2025-09-27T14:31:43+08:00">2025-09-27</time>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>1.6k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>6 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>现在的存储速度，传统 SATA SSD 已经跟不上了。于是 NVMe 出场了——更快、更并行、延迟低。Ceph 的 Crimson 正是为了迎接这样的下一代存储而生，它用 Seastar 来管理这些 NVMe 设备，把每个设备、每个队列都当作可调度的资源，让多核 CPU 的性能被充分发挥。今天，我们就从 NVMe 设备聊起，顺着 Crimson 的设备管理一路看下去，看看底层到底是怎么跑的。</p>
+<span id="more"></span>
+<h2 id="什么是NVMe"><a href="#什么是NVMe" class="headerlink" title="什么是NVMe"></a>什么是NVMe</h2><p>NVMe是协议，不是设备也不是驱动，就像HTTP是协议，浏览器和服务器是实现，NVMe 定义了SSD和主机控制器之间如何交流。</p>
+<p>NVMe设计的初衷是针对<strong>非易失性存储介质（NAND、3D XPoint、持久内存等）</strong> 设计。</p>
+<p>不再兼容HDD时代的AHCI设计限制（单队列、深度32）</p>
+<p>关键特征：</p>
+<ul>
+<li><p>队列模型</p>
+<ul>
+<li>支持64K个提交队列&#x2F;完成队列，每个队列深度64k.</li>
+<li>每个cpu核可以有独立队列，减少延迟，充分释放闪存的并行性。</li>
+</ul>
+</li>
+<li><p>寄存器模型优化</p>
+<ul>
+<li><p>一条IO命令只需要写一个doorbell寄存器，而AHCI需要四次寄存器读写</p>
+<p>AHCI模型（SATA SSD&#x2F;HDD 用的传统协议），AHCI定义了一个命令列表，在内存里。</p>
+<p>当你要下发一条I&#x2F;O命令（比如读4KB数据）：</p>
+<ol>
+<li>CPU 把命令描述符写入内存里的 Command List。</li>
+<li>CPU 必须更新多个寄存器：写 <strong>命令头寄存器</strong> 写 <strong>命令表基址寄存器</strong>写 <strong>PRDT（物理区域描述表）寄存器</strong>更新 <strong>控制寄存器</strong> 告诉控制器有新命令,控制器才能去取命令，开始执行</li>
+<li>每个 I&#x2F;O 至少 <strong>4 次 MMIO（寄存器读写）开销</strong>，消耗大量 CPU cycle（大概 2000~8000 个 cycle），延迟在微秒级。</li>
+</ol>
+<p>NVMe模型，定义了提交队列（SQ）&#x2F; 完成队列（CQ）,放在主机内存中。</p>
+<p>下发一条I&#x2F;O命令的步骤：</p>
+<ol>
+<li>CPU 把命令写到内存里的 <strong>SQ 队列槽位</strong>。</li>
+<li>CPU 只需要 <strong>写一次 doorbell 寄存器</strong>，告诉控制器“SQ head 已经增加”。</li>
+<li>控制器会直接 DMA 去取命令，不需要 CPU 做额外寄存器交互。</li>
+<li>每个 I&#x2F;O 只有 <strong>1 次 MMIO（doorbell write）</strong>，极大减少 CPU 开销和延迟。</li>
+</ol>
+</li>
+</ul>
+</li>
+<li><p>延迟极低</p>
+<ul>
+<li>单次 I&#x2F;O 延迟 ~10µs 级别，比 AHCI 少一半以上。</li>
+</ul>
+</li>
+<li><p>协议分层清晰：</p>
+<ul>
+<li>PCIe 提供物理链路</li>
+<li>NVMe协议再PCIe之上定义逻辑指令集</li>
+</ul>
+</li>
+</ul>
+<h2 id="设备特性"><a href="#设备特性" class="headerlink" title="设备特性"></a><strong>设备特性</strong></h2><ul>
+<li><p>对齐要求</p>
+<ul>
+<li><strong>最小 I&#x2F;O 单位</strong>：NVMe SSD 通常要求 <strong>4KB 对齐</strong>，即提交的 I&#x2F;O 地址和长度最好是 4KB 的整数倍。</li>
+<li>**擦除单元 (Erase Block &#x2F; LBA Block)**：<ul>
+<li>NAND 闪存以 Block 为单位擦写。</li>
+<li>随机写小于 Block 会触发 <strong>读-改-写操作</strong>，造成 <strong>写放大</strong>（Write Amplification），降低寿命和性能</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>写放大</p>
+<ul>
+<li>为了更新少量数据，SSD 需要擦除和重写整个 Block，导致实际写入数据量 &gt; 应用写入数据量</li>
+</ul>
+<p>影响：小随机写 IOPS 下降。设备寿命减少。</p>
+<p>优化方式：使用 <strong>顺序写</strong> 或 <strong>批量写</strong> 、合理规划 <strong>文件系统块大小</strong> 与 NVMe 对齐。</p>
+</li>
+<li><p>延迟指标</p>
+<ul>
+<li>单次 I&#x2F;O 延迟通常：<strong>消费级 NVMe</strong>：读 10–30 µs，写 20–50 µs。<strong>企业级 NVMe</strong>：读&#x2F;写可 &lt; 10 µs。</li>
+<li>对比SATA SSD：读&#x2F;写50–100 µs  HDD :读&#x2F;写 5–10 ms</li>
+</ul>
+</li>
+<li><p>iops与吞吐上限</p>
+<ul>
+<li><strong>单盘 IOPS</strong>：随机读(4KB) 500k-3000k .随机写（4kB）300k-700k</li>
+<li>NVMe 原生支持多队列，每个 CPU 核心可绑定一个或多个提交队列（这里就体现出crimsn 中使用seastar框架的重要性了）</li>
+<li>在多核 CPU 和多队列的场景下，IOPS 可以线性扩展到数百万，充分利用硬件并行能力。</li>
+</ul>
+</li>
+<li><p>I&#x2F;O调用方式</p>
+<ul>
+<li>libaio(传统linux异步io,适合单线程或者少量队列异步提交)</li>
+<li>io_uring（linux5.1 真正零拷贝和高性能多队列异步I&#x2F;O）</li>
+</ul>
+</li>
+<li><p>高级特性：</p>
+<ul>
+<li>NVMe2.0 :在线升级、多命名空间（128个）、多流、原子写、 sanitize、copy、verify、compare等高级特性。</li>
+<li>遵循OCP 2.5规范协议，Telemetry、Latency Monitor、Thermal Throttle等高级特性</li>
+<li>支持SR-IOV • 最多64个V</li>
+<li>灵活数据放置(FDP) • 提升稳态随机写性能，大幅降低写放大，特殊场景下 可实现WAF&#x3D;1</li>
+<li>TCG OPAL2.0安全规范 • 支持OPAL 2.0协议栈 • 支持SM2&#x2F;SM3&#x2F;SM4&#x2F;AES256数据加密</li>
+<li>端到端保护</li>
+<li>持Secure Boot、Firmware安全校验、Format、 Sanitize等多种企业级安全特性</li>
+</ul>
+</li>
+</ul>
+<p>简单了解了NVMe 协议和设备的特性，</p>
+<h2 id="2️⃣-软件工程层（开发-Crimson-Seastore-必须掌握）"><a href="#2️⃣-软件工程层（开发-Crimson-Seastore-必须掌握）" class="headerlink" title="2️⃣ 软件工程层（开发 Crimson&#x2F;Seastore 必须掌握）"></a>2️⃣ 软件工程层（开发 Crimson&#x2F;Seastore 必须掌握）</h2><ul>
+<li><strong>I&#x2F;O 路径</strong><ul>
+<li>内核 NVMe 驱动怎么和 <code>io_uring</code> 打通。</li>
+<li>为什么用户态驱动（SPDK）能进一步降低延迟。</li>
+<li>O_DIRECT、DMA 映射对性能的影响。</li>
+</ul>
+</li>
+<li><strong>多核并行</strong><ul>
+<li>NVMe 支持多队列，你的软件要怎么分配（比如 Seastar shard 对应 NVMe queue pair）。</li>
+<li>如何避免多个 core 抢一个 queue 带来的锁竞争。</li>
+</ul>
+</li>
+<li><strong>错误处理</strong><ul>
+<li><code>EINVAL (Invalid argument)</code>：未对齐 I&#x2F;O。</li>
+<li><code>EIO</code>：设备层报错，需要 retry。</li>
+<li>reset &#x2F; requeue 的语义（设备热插拔时必须考虑）。</li>
+</ul>
+</li>
+<li><strong>性能优化</strong><ul>
+<li>顺序写 &gt; 随机写，如何利用 append-log 结构减少随机写。</li>
+<li>大块 I&#x2F;O（128K、1M）和小块 I&#x2F;O 的 trade-off。</li>
+<li>IOPS vs 吞吐量的权衡。</li>
+</ul>
+</li>
+</ul>
+<h2 id="3️⃣-深入机制层（进阶，写存储引擎-GC-调度必须掌握）"><a href="#3️⃣-深入机制层（进阶，写存储引擎-GC-调度必须掌握）" class="headerlink" title="3️⃣ 深入机制层（进阶，写存储引擎&#x2F;GC&#x2F;调度必须掌握）"></a>3️⃣ 深入机制层（进阶，写存储引擎&#x2F;GC&#x2F;调度必须掌握）</h2><ul>
+<li><strong>Flash 物理特性</strong><ul>
+<li>Page &#x2F; Block &#x2F; Plane 的层次结构。</li>
+<li>为什么必须“先擦后写”。</li>
+<li>写放大（WA）和 GC 的触发机制。</li>
+<li>耐久性（DWPD：Drive Writes Per Day）。</li>
+</ul>
+</li>
+<li><strong>NVMe 协议细节</strong><ul>
+<li>NVMe 命令集（Read, Write, Flush, Dataset Management, Zone Append）。</li>
+<li>Zoned Namespace (ZNS) SSD 的新模式（只能顺序写 Zone）。</li>
+<li>NVMe 2.0 里的 KV SSD 扩展（key-value 命令）。</li>
+</ul>
+</li>
+<li><strong>持久性保证</strong><ul>
+<li>Flush&#x2F;FUA 的语义（写入必须持久化到 NAND）。</li>
+<li>Ceph Crimson 里 journal write + flush 的正确用法。</li>
+<li>Power-loss protection（掉电保护）的区别。</li>
+</ul>
+</li>
+</ul>
+<h2 id="4️⃣-前沿与趋势层（存储软件研发-leader-需要了解）"><a href="#4️⃣-前沿与趋势层（存储软件研发-leader-需要了解）" class="headerlink" title="4️⃣ 前沿与趋势层（存储软件研发 leader 需要了解）"></a>4️⃣ 前沿与趋势层（存储软件研发 leader 需要了解）</h2><ul>
+<li><strong>SPDK &#x2F; DPDK + NVMe-oF</strong><ul>
+<li>用户态驱动模型，绕过内核栈。</li>
+<li>远程存储：NVMe over Fabrics（RoCE、TCP）。</li>
+</ul>
+</li>
+<li><strong>ZNS SSD 与软件定义存储</strong><ul>
+<li>用软件控制写放大和 GC，替代 FTL（Flash Translation Layer）。</li>
+</ul>
+</li>
+<li><strong>CXL 与持久内存</strong><ul>
+<li>NVMe 未来可能和 CXL 竞争&#x2F;融合。</li>
+</ul>
+</li>
+</ul>
+<h2 id="为什么要关注设备管理？"><a href="#为什么要关注设备管理？" class="headerlink" title="为什么要关注设备管理？"></a>为什么要关注设备管理？</h2><h2 id="Crimson-的设备抽象？"><a href="#Crimson-的设备抽象？" class="headerlink" title="Crimson 的设备抽象？"></a>Crimson 的设备抽象？</h2><h2 id="设备初始化流程？"><a href="#设备初始化流程？" class="headerlink" title="设备初始化流程？"></a>设备初始化流程？</h2><h2 id="关键问题？"><a href="#关键问题？" class="headerlink" title="关键问题？"></a>关键问题？</h2>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Crimson/" rel="tag"># Crimson</a>
+              <a href="/tags/nvme/" rel="tag"># nvme</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/09/19/%E7%BA%A6%E7%91%9F%E5%A4%AB%E7%8E%AF/" rel="prev" title="约瑟夫环问题">
+      <i class="fa fa-chevron-left"></i> 约瑟夫环问题
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    
+  <div class="comments">
+    <div id="lv-container" data-id="city" data-uid="MTAyMC82MDkyNS8zNzM5NQ=="></div>
+  </div>
+  
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%98%AFNVMe"><span class="nav-number">1.</span> <span class="nav-text">什么是NVMe</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E5%A4%87%E7%89%B9%E6%80%A7"><span class="nav-number">2.</span> <span class="nav-text">设备特性</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2%EF%B8%8F%E2%83%A3-%E8%BD%AF%E4%BB%B6%E5%B7%A5%E7%A8%8B%E5%B1%82%EF%BC%88%E5%BC%80%E5%8F%91-Crimson-Seastore-%E5%BF%85%E9%A1%BB%E6%8E%8C%E6%8F%A1%EF%BC%89"><span class="nav-number">3.</span> <span class="nav-text">2️⃣ 软件工程层（开发 Crimson&#x2F;Seastore 必须掌握）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3%EF%B8%8F%E2%83%A3-%E6%B7%B1%E5%85%A5%E6%9C%BA%E5%88%B6%E5%B1%82%EF%BC%88%E8%BF%9B%E9%98%B6%EF%BC%8C%E5%86%99%E5%AD%98%E5%82%A8%E5%BC%95%E6%93%8E-GC-%E8%B0%83%E5%BA%A6%E5%BF%85%E9%A1%BB%E6%8E%8C%E6%8F%A1%EF%BC%89"><span class="nav-number">4.</span> <span class="nav-text">3️⃣ 深入机制层（进阶，写存储引擎&#x2F;GC&#x2F;调度必须掌握）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4%EF%B8%8F%E2%83%A3-%E5%89%8D%E6%B2%BF%E4%B8%8E%E8%B6%8B%E5%8A%BF%E5%B1%82%EF%BC%88%E5%AD%98%E5%82%A8%E8%BD%AF%E4%BB%B6%E7%A0%94%E5%8F%91-leader-%E9%9C%80%E8%A6%81%E4%BA%86%E8%A7%A3%EF%BC%89"><span class="nav-number">5.</span> <span class="nav-text">4️⃣ 前沿与趋势层（存储软件研发 leader 需要了解）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E5%85%B3%E6%B3%A8%E8%AE%BE%E5%A4%87%E7%AE%A1%E7%90%86%EF%BC%9F"><span class="nav-number">6.</span> <span class="nav-text">为什么要关注设备管理？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Crimson-%E7%9A%84%E8%AE%BE%E5%A4%87%E6%8A%BD%E8%B1%A1%EF%BC%9F"><span class="nav-number">7.</span> <span class="nav-text">Crimson 的设备抽象？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E5%A4%87%E5%88%9D%E5%A7%8B%E5%8C%96%E6%B5%81%E7%A8%8B%EF%BC%9F"><span class="nav-number">8.</span> <span class="nav-text">设备初始化流程？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%B3%E9%94%AE%E9%97%AE%E9%A2%98%EF%BC%9F"><span class="nav-number">9.</span> <span class="nav-text">关键问题？</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="lzy"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">lzy</p>
+  <div class="site-description" itemprop="description">选择有时候比努力更重要</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/hoshilzy1026" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;hoshilzy1026" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:18338064521@163.com" title="E-Mail → mailto:18338064521@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/6888391895" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;6888391895" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://stackoverflow.com/users/31529112/ffhoshi" title="StackOverflow → https:&#x2F;&#x2F;stackoverflow.com&#x2F;users&#x2F;31529112&#x2F;ffhoshi" rel="noopener" target="_blank"><i class="fab fa-stack-overflow fa-fw"></i>StackOverflow</a>
+      </span>
+  </div>
+
+
+
+      </div>
+<iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width=330 height=86 src="//music.163.com/outchain/player?type=2&id=36019737&auto=1&height=66"></iframe>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2021-12 – 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">lzy</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">19k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">1:07</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script color='0,0,255' opacity='0.5' zIndex='-1' count='99' src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<script>
+NexT.utils.loadComments(document.querySelector('#lv-container'), () => {
+  window.livereOptions = {
+    refer: location.pathname.replace(CONFIG.root, '').replace('index.html', '')
+  };
+  (function(d, s) {
+    var j, e = d.getElementsByTagName(s)[0];
+    if (typeof LivereTower === 'function') { return; }
+    j = d.createElement(s);
+    j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+    j.async = true;
+    e.parentNode.insertBefore(j, e);
+  })(document, 'script');
+});
+</script>
+
+</body>
+</html>
