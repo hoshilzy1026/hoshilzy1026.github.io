@@ -222,10 +222,16 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
-              
 
-              <time title="创建时间：2025-09-27 14:31:43 / 修改时间：16:45:04" itemprop="dateCreated datePublished" datetime="2025-09-27T14:31:43+08:00">2025-09-27</time>
+              <time title="创建时间：2025-09-27 14:31:43" itemprop="dateCreated datePublished" datetime="2025-09-27T14:31:43+08:00">2025-09-27</time>
             </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2025-09-30 10:30:35" itemprop="dateModified" datetime="2025-09-30T10:30:35+08:00">2025-09-30</time>
+              </span>
 
           <br>
             <span class="post-meta-item" title="本文字数">
@@ -233,7 +239,7 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>1.6k</span>
+              <span>1.7k</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
@@ -252,7 +258,15 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>现在的存储速度，传统 SATA SSD 已经跟不上了。于是 NVMe 出场了——更快、更并行、延迟低。Ceph 的 Crimson 正是为了迎接这样的下一代存储而生，它用 Seastar 来管理这些 NVMe 设备，把每个设备、每个队列都当作可调度的资源，让多核 CPU 的性能被充分发挥。今天，我们就从 NVMe 设备聊起，顺着 Crimson 的设备管理一路看下去，看看底层到底是怎么跑的。</p>
+          <p>NVMe 的问世，把存储硬件的性能拉到了 <strong>“微秒 + 百万 IOPS”</strong> 的时代。传统的内核 IO 栈和同步编程模式，反而成了新的瓶颈，无法充分释放硬件潜力。这迫使软件必须进行一次深刻的变革：从 <strong>同步 → 异步</strong>，从 <strong>内核 → 用户态</strong>，从 <strong>粗粒度锁 → 精细化无锁并发</strong>，才能真正发挥出 NVMe 的极限性能。</p>
+<p>在 Ceph 的设想中，未来的存储引擎 <strong>SeaStore</strong> 正是为了承担这一使命：</p>
+<ul>
+<li><strong>同步到异步</strong>：完全基于 Seastar 框架，采用 Future&#x2F;Promise 异步编程模型，杜绝阻塞。</li>
+<li><strong>内核到用户态</strong>：借助 Seastar 的用户态网络dpdk与 io_uring 用户态 IO 接口，最大程度减少内核切换开销。</li>
+<li><strong>绑核与分片</strong>：每个 CPU shard 独立运行，线程与数据强绑定，端到端的数据路径天然无锁。</li>
+<li><strong>无锁化</strong>：通过分片隔离与消息传递机制，避免传统锁竞争，让并发更细粒度、更高效。</li>
+</ul>
+<p>这样一来，SeaStore 不仅是 Ceph 的“下一代引擎”，更是面向 NVMe 时代的软件范式转型的具体落地。</p>
           <!--noindex-->
             <div class="post-button">
               <a class="btn" href="/2025/09/27/nvme-device/#more" rel="contents">
@@ -744,7 +758,7 @@
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
-    <span title="站点阅读时长">1:07</span>
+    <span title="站点阅读时长">1:08</span>
 </div>
 
         

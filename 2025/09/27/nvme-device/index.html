@@ -20,15 +20,15 @@
     var CONFIG = {"hostname":"hoshilzy1026.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":false,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.json"};
   </script>
 
-  <meta name="description" content="现在的存储速度，传统 SATA SSD 已经跟不上了。于是 NVMe 出场了——更快、更并行、延迟低。Ceph 的 Crimson 正是为了迎接这样的下一代存储而生，它用 Seastar 来管理这些 NVMe 设备，把每个设备、每个队列都当作可调度的资源，让多核 CPU 的性能被充分发挥。今天，我们就从 NVMe 设备聊起，顺着 Crimson 的设备管理一路看下去，看看底层到底是怎么跑的。">
+  <meta name="description" content="NVMe 的问世，把存储硬件的性能拉到了 “微秒 + 百万 IOPS” 的时代。传统的内核 IO 栈和同步编程模式，反而成了新的瓶颈，无法充分释放硬件潜力。这迫使软件必须进行一次深刻的变革：从 同步 → 异步，从 内核 → 用户态，从 粗粒度锁 → 精细化无锁并发，才能真正发挥出 NVMe 的极限性能。 在 Ceph 的设想中，未来的存储引擎 SeaStore 正是为了承担这一使命：  同步到异步">
 <meta property="og:type" content="article">
 <meta property="og:title" content="crimson中的设备管理从Nvme 到Seastore">
 <meta property="og:url" content="https://hoshilzy1026.github.io/2025/09/27/nvme-device/index.html">
 <meta property="og:site_name" content="Hoshi">
-<meta property="og:description" content="现在的存储速度，传统 SATA SSD 已经跟不上了。于是 NVMe 出场了——更快、更并行、延迟低。Ceph 的 Crimson 正是为了迎接这样的下一代存储而生，它用 Seastar 来管理这些 NVMe 设备，把每个设备、每个队列都当作可调度的资源，让多核 CPU 的性能被充分发挥。今天，我们就从 NVMe 设备聊起，顺着 Crimson 的设备管理一路看下去，看看底层到底是怎么跑的。">
+<meta property="og:description" content="NVMe 的问世，把存储硬件的性能拉到了 “微秒 + 百万 IOPS” 的时代。传统的内核 IO 栈和同步编程模式，反而成了新的瓶颈，无法充分释放硬件潜力。这迫使软件必须进行一次深刻的变革：从 同步 → 异步，从 内核 → 用户态，从 粗粒度锁 → 精细化无锁并发，才能真正发挥出 NVMe 的极限性能。 在 Ceph 的设想中，未来的存储引擎 SeaStore 正是为了承担这一使命：  同步到异步">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2025-09-27T06:31:43.000Z">
-<meta property="article:modified_time" content="2025-09-27T08:45:04.650Z">
+<meta property="article:modified_time" content="2025-09-30T02:30:35.000Z">
 <meta property="article:author" content="lzy">
 <meta property="article:tag" content="Crimson">
 <meta property="article:tag" content="nvme">
@@ -226,10 +226,16 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
-              
 
-              <time title="创建时间：2025-09-27 14:31:43 / 修改时间：16:45:04" itemprop="dateCreated datePublished" datetime="2025-09-27T14:31:43+08:00">2025-09-27</time>
+              <time title="创建时间：2025-09-27 14:31:43" itemprop="dateCreated datePublished" datetime="2025-09-27T14:31:43+08:00">2025-09-27</time>
             </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2025-09-30 10:30:35" itemprop="dateModified" datetime="2025-09-30T10:30:35+08:00">2025-09-30</time>
+              </span>
 
           <br>
             <span class="post-meta-item" title="本文字数">
@@ -237,7 +243,7 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>1.6k</span>
+              <span>1.7k</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
@@ -256,10 +262,18 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>现在的存储速度，传统 SATA SSD 已经跟不上了。于是 NVMe 出场了——更快、更并行、延迟低。Ceph 的 Crimson 正是为了迎接这样的下一代存储而生，它用 Seastar 来管理这些 NVMe 设备，把每个设备、每个队列都当作可调度的资源，让多核 CPU 的性能被充分发挥。今天，我们就从 NVMe 设备聊起，顺着 Crimson 的设备管理一路看下去，看看底层到底是怎么跑的。</p>
+        <p>NVMe 的问世，把存储硬件的性能拉到了 <strong>“微秒 + 百万 IOPS”</strong> 的时代。传统的内核 IO 栈和同步编程模式，反而成了新的瓶颈，无法充分释放硬件潜力。这迫使软件必须进行一次深刻的变革：从 <strong>同步 → 异步</strong>，从 <strong>内核 → 用户态</strong>，从 <strong>粗粒度锁 → 精细化无锁并发</strong>，才能真正发挥出 NVMe 的极限性能。</p>
+<p>在 Ceph 的设想中，未来的存储引擎 <strong>SeaStore</strong> 正是为了承担这一使命：</p>
+<ul>
+<li><strong>同步到异步</strong>：完全基于 Seastar 框架，采用 Future&#x2F;Promise 异步编程模型，杜绝阻塞。</li>
+<li><strong>内核到用户态</strong>：借助 Seastar 的用户态网络dpdk与 io_uring 用户态 IO 接口，最大程度减少内核切换开销。</li>
+<li><strong>绑核与分片</strong>：每个 CPU shard 独立运行，线程与数据强绑定，端到端的数据路径天然无锁。</li>
+<li><strong>无锁化</strong>：通过分片隔离与消息传递机制，避免传统锁竞争，让并发更细粒度、更高效。</li>
+</ul>
+<p>这样一来，SeaStore 不仅是 Ceph 的“下一代引擎”，更是面向 NVMe 时代的软件范式转型的具体落地。</p>
 <span id="more"></span>
-<h2 id="什么是NVMe"><a href="#什么是NVMe" class="headerlink" title="什么是NVMe"></a>什么是NVMe</h2><p>NVMe是协议，不是设备也不是驱动，就像HTTP是协议，浏览器和服务器是实现，NVMe 定义了SSD和主机控制器之间如何交流。</p>
-<p>NVMe设计的初衷是针对<strong>非易失性存储介质（NAND、3D XPoint、持久内存等）</strong> 设计。</p>
+
+<h2 id="什么是NVMe"><a href="#什么是NVMe" class="headerlink" title="什么是NVMe"></a>什么是NVMe</h2><p>NVMe是协议，不是设备也不是驱动，就像HTTP是协议，浏览器和服务器是实现，NVMe 定义了SSD和主机控制器之间如何交流。可减少<a target="_blank" rel="noopener" href="https://www.ibm.com/cn-zh/topics/flash-storage">闪存存储</a>和[固态硬盘 (SSD) ]中使用的每个输入&#x2F;输出 (I&#x2F;O) 的系统开销。</p>
 <p>不再兼容HDD时代的AHCI设计限制（单队列、深度32）</p>
 <p>关键特征：</p>
 <ul>
@@ -302,6 +316,53 @@
 </ul>
 </li>
 </ul>
+<h2 id="为什么传统软件栈不够用？"><a href="#为什么传统软件栈不够用？" class="headerlink" title="为什么传统软件栈不够用？"></a>为什么传统软件栈不够用？</h2><p>虽然 Bluestore 已经绕过了文件系统（直接管理裸盘），但它仍然存在两个关键瓶颈：</p>
+<ol>
+<li><p><strong>依赖内核 IO 栈</strong>  </p>
+<ul>
+<li>Bluestore 使用 libaio 提交请求，最终还是要走 Linux 内核的 I&#x2F;O 路径。  </li>
+<li>NVMe 的多队列并行性被内核锁与调度部分抵消。</li>
+</ul>
+</li>
+<li><p><strong>多核扩展差</strong>  </p>
+<ul>
+<li>传统ceph的OSD 内部有大量线程，多个线程共享一个设备队列，需要加锁。  </li>
+<li>NVMe 给了“每个 core 一个队列”的能力，但传统 OSD 架构无法做到真正的无锁扩展。</li>
+</ul>
+</li>
+</ol>
+<p>结果就是：  </p>
+<ul>
+<li>NVMe 单盘明明能跑 100 万 IOPS，Bluestore OSD 只能吃下 20~30 万。  </li>
+<li>延迟也比硬件指标多出几倍。</li>
+</ul>
+<p>这就是 Ceph 需要 Crimson&#x2F;Seastore 的根本原因。</p>
+<hr>
+<h2 id="Seastar-与-NVMe-的天然契合"><a href="#Seastar-与-NVMe-的天然契合" class="headerlink" title="Seastar 与 NVMe 的天然契合"></a>Seastar 与 NVMe 的天然契合</h2><p>NVMe 的设计理念，和 Seastar 的 shard 模型几乎是天然匹配的：  </p>
+<ul>
+<li><p><strong>多队列对多 shard</strong>  </p>
+<ul>
+<li>NVMe：最多 64K 个提交&#x2F;完成队列，每个 core 可独享一个队列。  </li>
+<li>Seastar：应用拆分成多个 shard，每个 core 独立执行。  </li>
+<li>映射关系：一个 shard ↔ 一个 NVMe 队列，无需锁。</li>
+</ul>
+</li>
+<li><p><strong>无锁并行</strong>  </p>
+<ul>
+<li>每个 core 只 poll 自己的完成队列，不会和其他 core 争抢。  </li>
+<li>I&#x2F;O 提交和完成完全 core-local，避免了传统 OSD 的“队列共享 + 自旋锁”。</li>
+</ul>
+</li>
+<li><p><strong>性能收益直观</strong>  </p>
+<ul>
+<li>传统 aio + 内核队列：单盘 4KB 随机读 ~40 万 IOPS  </li>
+<li>io_uring + shard 绑定队列：单盘可跑 150 万 IOPS+  </li>
+<li>在 Crimson&#x2F;Seastore 的实验结果中，相比 Bluestore 延迟下降 3<del>5 倍，IOPS 提升 2</del>3 倍。</li>
+</ul>
+</li>
+</ul>
+<p>可以说，Seastore 不是“适配 NVMe”，而是“为 NVMe 而生”。</p>
+<hr>
 <h2 id="设备特性"><a href="#设备特性" class="headerlink" title="设备特性"></a><strong>设备特性</strong></h2><ul>
 <li><p>对齐要求</p>
 <ul>
@@ -351,69 +412,8 @@
 </ul>
 </li>
 </ul>
-<p>简单了解了NVMe 协议和设备的特性，</p>
-<h2 id="2️⃣-软件工程层（开发-Crimson-Seastore-必须掌握）"><a href="#2️⃣-软件工程层（开发-Crimson-Seastore-必须掌握）" class="headerlink" title="2️⃣ 软件工程层（开发 Crimson&#x2F;Seastore 必须掌握）"></a>2️⃣ 软件工程层（开发 Crimson&#x2F;Seastore 必须掌握）</h2><ul>
-<li><strong>I&#x2F;O 路径</strong><ul>
-<li>内核 NVMe 驱动怎么和 <code>io_uring</code> 打通。</li>
-<li>为什么用户态驱动（SPDK）能进一步降低延迟。</li>
-<li>O_DIRECT、DMA 映射对性能的影响。</li>
-</ul>
-</li>
-<li><strong>多核并行</strong><ul>
-<li>NVMe 支持多队列，你的软件要怎么分配（比如 Seastar shard 对应 NVMe queue pair）。</li>
-<li>如何避免多个 core 抢一个 queue 带来的锁竞争。</li>
-</ul>
-</li>
-<li><strong>错误处理</strong><ul>
-<li><code>EINVAL (Invalid argument)</code>：未对齐 I&#x2F;O。</li>
-<li><code>EIO</code>：设备层报错，需要 retry。</li>
-<li>reset &#x2F; requeue 的语义（设备热插拔时必须考虑）。</li>
-</ul>
-</li>
-<li><strong>性能优化</strong><ul>
-<li>顺序写 &gt; 随机写，如何利用 append-log 结构减少随机写。</li>
-<li>大块 I&#x2F;O（128K、1M）和小块 I&#x2F;O 的 trade-off。</li>
-<li>IOPS vs 吞吐量的权衡。</li>
-</ul>
-</li>
-</ul>
-<h2 id="3️⃣-深入机制层（进阶，写存储引擎-GC-调度必须掌握）"><a href="#3️⃣-深入机制层（进阶，写存储引擎-GC-调度必须掌握）" class="headerlink" title="3️⃣ 深入机制层（进阶，写存储引擎&#x2F;GC&#x2F;调度必须掌握）"></a>3️⃣ 深入机制层（进阶，写存储引擎&#x2F;GC&#x2F;调度必须掌握）</h2><ul>
-<li><strong>Flash 物理特性</strong><ul>
-<li>Page &#x2F; Block &#x2F; Plane 的层次结构。</li>
-<li>为什么必须“先擦后写”。</li>
-<li>写放大（WA）和 GC 的触发机制。</li>
-<li>耐久性（DWPD：Drive Writes Per Day）。</li>
-</ul>
-</li>
-<li><strong>NVMe 协议细节</strong><ul>
-<li>NVMe 命令集（Read, Write, Flush, Dataset Management, Zone Append）。</li>
-<li>Zoned Namespace (ZNS) SSD 的新模式（只能顺序写 Zone）。</li>
-<li>NVMe 2.0 里的 KV SSD 扩展（key-value 命令）。</li>
-</ul>
-</li>
-<li><strong>持久性保证</strong><ul>
-<li>Flush&#x2F;FUA 的语义（写入必须持久化到 NAND）。</li>
-<li>Ceph Crimson 里 journal write + flush 的正确用法。</li>
-<li>Power-loss protection（掉电保护）的区别。</li>
-</ul>
-</li>
-</ul>
-<h2 id="4️⃣-前沿与趋势层（存储软件研发-leader-需要了解）"><a href="#4️⃣-前沿与趋势层（存储软件研发-leader-需要了解）" class="headerlink" title="4️⃣ 前沿与趋势层（存储软件研发 leader 需要了解）"></a>4️⃣ 前沿与趋势层（存储软件研发 leader 需要了解）</h2><ul>
-<li><strong>SPDK &#x2F; DPDK + NVMe-oF</strong><ul>
-<li>用户态驱动模型，绕过内核栈。</li>
-<li>远程存储：NVMe over Fabrics（RoCE、TCP）。</li>
-</ul>
-</li>
-<li><strong>ZNS SSD 与软件定义存储</strong><ul>
-<li>用软件控制写放大和 GC，替代 FTL（Flash Translation Layer）。</li>
-</ul>
-</li>
-<li><strong>CXL 与持久内存</strong><ul>
-<li>NVMe 未来可能和 CXL 竞争&#x2F;融合。</li>
-</ul>
-</li>
-</ul>
-<h2 id="为什么要关注设备管理？"><a href="#为什么要关注设备管理？" class="headerlink" title="为什么要关注设备管理？"></a>为什么要关注设备管理？</h2><h2 id="Crimson-的设备抽象？"><a href="#Crimson-的设备抽象？" class="headerlink" title="Crimson 的设备抽象？"></a>Crimson 的设备抽象？</h2><h2 id="设备初始化流程？"><a href="#设备初始化流程？" class="headerlink" title="设备初始化流程？"></a>设备初始化流程？</h2><h2 id="关键问题？"><a href="#关键问题？" class="headerlink" title="关键问题？"></a>关键问题？</h2>
+<hr>
+
     </div>
 
     
@@ -499,7 +499,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%98%AFNVMe"><span class="nav-number">1.</span> <span class="nav-text">什么是NVMe</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E5%A4%87%E7%89%B9%E6%80%A7"><span class="nav-number">2.</span> <span class="nav-text">设备特性</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2%EF%B8%8F%E2%83%A3-%E8%BD%AF%E4%BB%B6%E5%B7%A5%E7%A8%8B%E5%B1%82%EF%BC%88%E5%BC%80%E5%8F%91-Crimson-Seastore-%E5%BF%85%E9%A1%BB%E6%8E%8C%E6%8F%A1%EF%BC%89"><span class="nav-number">3.</span> <span class="nav-text">2️⃣ 软件工程层（开发 Crimson&#x2F;Seastore 必须掌握）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3%EF%B8%8F%E2%83%A3-%E6%B7%B1%E5%85%A5%E6%9C%BA%E5%88%B6%E5%B1%82%EF%BC%88%E8%BF%9B%E9%98%B6%EF%BC%8C%E5%86%99%E5%AD%98%E5%82%A8%E5%BC%95%E6%93%8E-GC-%E8%B0%83%E5%BA%A6%E5%BF%85%E9%A1%BB%E6%8E%8C%E6%8F%A1%EF%BC%89"><span class="nav-number">4.</span> <span class="nav-text">3️⃣ 深入机制层（进阶，写存储引擎&#x2F;GC&#x2F;调度必须掌握）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4%EF%B8%8F%E2%83%A3-%E5%89%8D%E6%B2%BF%E4%B8%8E%E8%B6%8B%E5%8A%BF%E5%B1%82%EF%BC%88%E5%AD%98%E5%82%A8%E8%BD%AF%E4%BB%B6%E7%A0%94%E5%8F%91-leader-%E9%9C%80%E8%A6%81%E4%BA%86%E8%A7%A3%EF%BC%89"><span class="nav-number">5.</span> <span class="nav-text">4️⃣ 前沿与趋势层（存储软件研发 leader 需要了解）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E5%85%B3%E6%B3%A8%E8%AE%BE%E5%A4%87%E7%AE%A1%E7%90%86%EF%BC%9F"><span class="nav-number">6.</span> <span class="nav-text">为什么要关注设备管理？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Crimson-%E7%9A%84%E8%AE%BE%E5%A4%87%E6%8A%BD%E8%B1%A1%EF%BC%9F"><span class="nav-number">7.</span> <span class="nav-text">Crimson 的设备抽象？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E5%A4%87%E5%88%9D%E5%A7%8B%E5%8C%96%E6%B5%81%E7%A8%8B%EF%BC%9F"><span class="nav-number">8.</span> <span class="nav-text">设备初始化流程？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%B3%E9%94%AE%E9%97%AE%E9%A2%98%EF%BC%9F"><span class="nav-number">9.</span> <span class="nav-text">关键问题？</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%98%AFNVMe"><span class="nav-number">1.</span> <span class="nav-text">什么是NVMe</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E4%BC%A0%E7%BB%9F%E8%BD%AF%E4%BB%B6%E6%A0%88%E4%B8%8D%E5%A4%9F%E7%94%A8%EF%BC%9F"><span class="nav-number">2.</span> <span class="nav-text">为什么传统软件栈不够用？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Seastar-%E4%B8%8E-NVMe-%E7%9A%84%E5%A4%A9%E7%84%B6%E5%A5%91%E5%90%88"><span class="nav-number">3.</span> <span class="nav-text">Seastar 与 NVMe 的天然契合</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E5%A4%87%E7%89%B9%E6%80%A7"><span class="nav-number">4.</span> <span class="nav-text">设备特性</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
@@ -577,7 +577,7 @@
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
-    <span title="站点阅读时长">1:07</span>
+    <span title="站点阅读时长">1:08</span>
 </div>
 
         
