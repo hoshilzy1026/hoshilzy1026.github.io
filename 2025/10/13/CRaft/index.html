@@ -20,21 +20,23 @@
     var CONFIG = {"hostname":"hoshilzy1026.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":false,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.json"};
   </script>
 
-  <meta name="description" content="NVMe 的问世，把存储硬件的性能拉到了 “微秒 + 百万 IOPS” 的时代。传统的内核 IO 栈和同步编程模式，反而成了新的瓶颈，无法充分释放硬件潜力。这迫使软件必须进行一次深刻的变革：从 同步 → 异步，从 内核 → 用户态，从 粗粒度锁 → 精细化无锁并发，才能真正发挥出 NVMe 的极限性能。 在 Ceph 的设想中，未来的存储引擎 SeaStore 正是为了承担这一使命：  同步到异步">
+  <meta name="description" content="FAST2020 主要是利用纠删码基于 Raft 进行优化，降低一致性开销">
 <meta property="og:type" content="article">
-<meta property="og:title" content="crimson中的设备管理从Nvme 到Seastore">
-<meta property="og:url" content="https://hoshilzy1026.github.io/2025/09/27/nvme-device/index.html">
+<meta property="og:title" content="CRaft An Erasure-coding-supported Version of Raft for Reducing Storage Cost and Network Cost">
+<meta property="og:url" content="https://hoshilzy1026.github.io/2025/10/13/CRaft/index.html">
 <meta property="og:site_name" content="Hoshi">
-<meta property="og:description" content="NVMe 的问世，把存储硬件的性能拉到了 “微秒 + 百万 IOPS” 的时代。传统的内核 IO 栈和同步编程模式，反而成了新的瓶颈，无法充分释放硬件潜力。这迫使软件必须进行一次深刻的变革：从 同步 → 异步，从 内核 → 用户态，从 粗粒度锁 → 精细化无锁并发，才能真正发挥出 NVMe 的极限性能。 在 Ceph 的设想中，未来的存储引擎 SeaStore 正是为了承担这一使命：  同步到异步">
+<meta property="og:description" content="FAST2020 主要是利用纠删码基于 Raft 进行优化，降低一致性开销">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2025-09-27T06:31:43.000Z">
-<meta property="article:modified_time" content="2025-09-30T02:30:35.000Z">
+<meta property="og:image" content="https://raw.githubusercontent.com/zjs1224522500/PicGoImages/master//img/blog/20201216220445.png">
+<meta property="article:published_time" content="2025-10-13T11:57:27.000Z">
+<meta property="article:modified_time" content="2025-10-13T12:02:35.389Z">
 <meta property="article:author" content="lzy">
-<meta property="article:tag" content="nvme">
-<meta property="article:tag" content="Crimson">
+<meta property="article:tag" content="存储">
+<meta property="article:tag" content="分布式">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/zjs1224522500/PicGoImages/master//img/blog/20201216220445.png">
 
-<link rel="canonical" href="https://hoshilzy1026.github.io/2025/09/27/nvme-device/">
+<link rel="canonical" href="https://hoshilzy1026.github.io/2025/10/13/CRaft/">
 
 
 <script id="page-configurations">
@@ -47,7 +49,7 @@
   };
 </script>
 
-  <title>crimson中的设备管理从Nvme 到Seastore | Hoshi</title>
+  <title>CRaft An Erasure-coding-supported Version of Raft for Reducing Storage Cost and Network Cost | Hoshi</title>
   
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y6XQ2TRE3Y"></script>
     <script>
@@ -204,7 +206,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://hoshilzy1026.github.io/2025/09/27/nvme-device/">
+    <link itemprop="mainEntityOfPage" href="https://hoshilzy1026.github.io/2025/10/13/CRaft/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -217,7 +219,7 @@
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          crimson中的设备管理从Nvme 到Seastore
+          CRaft An Erasure-coding-supported Version of Raft for Reducing Storage Cost and Network Cost
         </h1>
 
         <div class="post-meta">
@@ -226,16 +228,10 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
+              
 
-              <time title="创建时间：2025-09-27 14:31:43" itemprop="dateCreated datePublished" datetime="2025-09-27T14:31:43+08:00">2025-09-27</time>
+              <time title="创建时间：2025-10-13 19:57:27 / 修改时间：20:02:35" itemprop="dateCreated datePublished" datetime="2025-10-13T19:57:27+08:00">2025-10-13</time>
             </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2025-09-30 10:30:35" itemprop="dateModified" datetime="2025-09-30T10:30:35+08:00">2025-09-30</time>
-              </span>
 
           <br>
             <span class="post-meta-item" title="本文字数">
@@ -243,14 +239,14 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>1.7k</span>
+              <span>2.1k</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
                 <i class="far fa-clock"></i>
               </span>
                 <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>6 分钟</span>
+              <span>8 分钟</span>
             </span>
 
         </div>
@@ -262,157 +258,77 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>NVMe 的问世，把存储硬件的性能拉到了 <strong>“微秒 + 百万 IOPS”</strong> 的时代。传统的内核 IO 栈和同步编程模式，反而成了新的瓶颈，无法充分释放硬件潜力。这迫使软件必须进行一次深刻的变革：从 <strong>同步 → 异步</strong>，从 <strong>内核 → 用户态</strong>，从 <strong>粗粒度锁 → 精细化无锁并发</strong>，才能真正发挥出 NVMe 的极限性能。</p>
-<p>在 Ceph 的设想中，未来的存储引擎 <strong>SeaStore</strong> 正是为了承担这一使命：</p>
-<ul>
-<li><strong>同步到异步</strong>：完全基于 Seastar 框架，采用 Future&#x2F;Promise 异步编程模型，杜绝阻塞。</li>
-<li><strong>内核到用户态</strong>：借助 Seastar 的用户态网络dpdk与 io_uring 用户态 IO 接口，最大程度减少内核切换开销。</li>
-<li><strong>绑核与分片</strong>：每个 CPU shard 独立运行，线程与数据强绑定，端到端的数据路径天然无锁。</li>
-<li><strong>无锁化</strong>：通过分片隔离与消息传递机制，避免传统锁竞争，让并发更细粒度、更高效。</li>
+        <ul>
+<li>FAST2020 主要是利用纠删码基于 Raft 进行优化，降低一致性开销</li>
 </ul>
-<p>这样一来，SeaStore 不仅是 Ceph 的“下一代引擎”，更是面向 NVMe 时代的软件范式转型的具体落地。</p>
 <span id="more"></span>
 
-<h2 id="什么是NVMe"><a href="#什么是NVMe" class="headerlink" title="什么是NVMe"></a>什么是NVMe</h2><p>NVMe是协议，不是设备也不是驱动，就像HTTP是协议，浏览器和服务器是实现，NVMe 定义了SSD和主机控制器之间如何交流。可减少<a target="_blank" rel="noopener" href="https://www.ibm.com/cn-zh/topics/flash-storage">闪存存储</a>和[固态硬盘 (SSD) ]中使用的每个输入&#x2F;输出 (I&#x2F;O) 的系统开销。</p>
-<p>不再兼容HDD时代的AHCI设计限制（单队列、深度32）</p>
-<p>关键特征：</p>
+<h2 id="Abstract"><a href="#Abstract" class="headerlink" title="Abstract"></a>Abstract</h2><ul>
+<li>一致性协议主要是在分布式系统中用于保证可靠性和可用性的，现有的一致性协议大多都是要将日志项给备份到所有的服务器中，这种全量的副本的策略在存储和网络上的开销都很大，严重影响性能，所以后来出现了纠删码，即在保证相同的容错能力的条件下减少存储和网络的开销。</li>
+<li>RS-Paxos 是第一个支持 EC 数据的一致性协议，但是比起通用的一致性协议，如 Paxos&#x2F;Raft，可用性都相对更差。我们指出了RSPaxos的活性问题，并试图解决，基于 Raft 提出了 CRaft，既能使用 EC 码像 RS-Paxos 一样降低存储和网络开销，也能保证如 Raft 一样的 liveness。</li>
+<li>基于 CRaft 实现了一个 KVs，实验表明相对于 Raft 节省了 66% 的存储空间，写吞吐量提升了 250%，写延迟减少了 60.8%</li>
+</ul>
+<h2 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h2><ul>
+<li><p>共识算法介绍</p>
+<p>：共识协议协议通常保证安全性和活动性，这意味着它们总是返回正确的结果，并且在大多数服务器都没有发生故障的情况下可以完全正常工作。</p>
 <ul>
-<li><p>队列模型</p>
-<ul>
-<li>支持64K个提交队列&#x2F;完成队列，每个队列深度64k.</li>
-<li>每个cpu核可以有独立队列，减少延迟，充分释放闪存的并行性。</li>
+<li>Google’s Chubby 会使用 Paxos 对 metadata 做副本</li>
+<li>Gaios(NSDI2011) 表明一致性协议可以被用于所有数据的 replicated</li>
+<li>现如今大量应用如 etcd, TinyKV, FSS 等大规模系统都使用了 Raft&#x2F;Paxos 来 replicated TB 数量级的数据，并提供更好的可用性</li>
 </ul>
 </li>
-<li><p>寄存器模型优化</p>
-<ul>
-<li><p>一条IO命令只需要写一个doorbell寄存器，而AHCI需要四次寄存器读写</p>
-<p>AHCI模型（SATA SSD&#x2F;HDD 用的传统协议），AHCI定义了一个命令列表，在内存里。</p>
-<p>当你要下发一条I&#x2F;O命令（比如读4KB数据）：</p>
-<ol>
-<li>CPU 把命令描述符写入内存里的 Command List。</li>
-<li>CPU 必须更新多个寄存器：写 <strong>命令头寄存器</strong> 写 <strong>命令表基址寄存器</strong>写 <strong>PRDT（物理区域描述表）寄存器</strong>更新 <strong>控制寄存器</strong> 告诉控制器有新命令,控制器才能去取命令，开始执行</li>
-<li>每个 I&#x2F;O 至少 <strong>4 次 MMIO（寄存器读写）开销</strong>，消耗大量 CPU cycle（大概 2000~8000 个 cycle），延迟在微秒级。</li>
-</ol>
-<p>NVMe模型，定义了提交队列（SQ）&#x2F; 完成队列（CQ）,放在主机内存中。</p>
-<p>下发一条I&#x2F;O命令的步骤：</p>
-<ol>
-<li>CPU 把命令写到内存里的 <strong>SQ 队列槽位</strong>。</li>
-<li>CPU 只需要 <strong>写一次 doorbell 寄存器</strong>，告诉控制器“SQ head 已经增加”。</li>
-<li>控制器会直接 DMA 去取命令，不需要 CPU 做额外寄存器交互。</li>
-<li>每个 I&#x2F;O 只有 <strong>1 次 MMIO（doorbell write）</strong>，极大减少 CPU 开销和延迟。</li>
-</ol>
+<li><p><strong>多副本介绍</strong>：数据操作通常在分布式系统中被转换为一系列的日志指令，然后使用一致性协议在所有的服务器之间进行备份，所以数据需要经过网络传输到所有的服务器，然后还要刷会到磁盘持久化保存。一致性问题中，容错率如果为 F，那么则至少需要 N &#x3D; (2F + 1) 的服务器，否则就可能因为分组的原因出现不一致的情况。因此传统的副本策略往往就意味值原始数据量的 N 倍的网络和存储开销，而且随着这些协议在大规模存储系统中得到了越来越多的应用，N 倍的网络和存储开销带来的则是延迟的增加和吞吐量的下降。<strong>所以出现了 Erasure Coding</strong></p>
+</li>
+<li><p><strong>纠删码介绍</strong>：纠删码相比于全量拷贝的副本策略，极大地减小了存储和网络的开销。通过将数据进行分片，编码分片后的数据并生成一些校验的分片，原始的数据就能从足够数量的分片子集中恢复出来，这时候每个服务器只存储一个分片，而不是数据的全量拷贝，开销极大减小。FSS 中就使用了纠删码来减少存储开销，但是 FSS 在编码之前使用了一个 5 way 流水线 Paxos 来备份完整的用户数据和元数据，因此额外的网络开销还是有 4 倍数据量大小。</p>
+</li>
+<li><p><strong>RS-Paxos</strong> 是第一个结合了 Paxos 和 EC 的共识协议，虽然减少了存储和网络的开销，但是在可用性上比 Paxos 还是更差，RA-Paxos 牺牲了 liveness 来使用 EC 提升性能，换句话说就是 RS-Paoxs 如果有 N &#x3D; (2F + 1) 的服务器不再能容忍 F 个错误，即容错率下降了，主要是因为 RS-Paxos 中的提交要求越来越严格。</p>
+</li>
+<li><p>作者提出了 erasure-coding-supported version of Raft <strong>CRaft</strong> (Coded Raft)。该方案中，一个 leader 有两种方法备份日志项到 followers，如果 leader 能够和足够数量的 followers 通信，那么 leader 将使用分片后的日志项进行备份，即传统纠删码的方式，否则将备份完整的数据以保证可用性。相比于 RS-Paxos，CRaft 最大的不同是拥有和 Paxos&#x2F;Raft 相同级别的 liveness，而 RS-Paxos 没有，但是两个方案都节省了网络和存储的成本。</p>
 </li>
 </ul>
-</li>
-<li><p>延迟极低</p>
-<ul>
-<li>单次 I&#x2F;O 延迟 ~10µs 级别，比 AHCI 少一半以上。</li>
+<h2 id="Background"><a href="#Background" class="headerlink" title="Background"></a>Background</h2><h3 id="Raft"><a href="#Raft" class="headerlink" title="Raft"></a>Raft</h3><ul>
+<li><a target="_blank" rel="noopener" href="https://raft.github.io/">https://raft.github.io/</a></li>
+<li>Raft 原始论文：<a target="_blank" rel="noopener" href="https://raft.github.io/raft.pdf">https://raft.github.io/raft.pdf</a></li>
+<li>Raft 中主要有三个角色&#x2F;三种状态。Candidate 收到了来自大多数 servers 的选票后成为 Leader，一个 Server 只会给 和该 Server 日志同步的 Candidate 投票。每个 Server 每一轮最多投一次，所以 Raft 保证每一轮最多就一个 leader。<ul>
+<li>Leader: 处理所有客户端交互，日志复制等，一般一次只有一个Leader。</li>
+<li>Follower: 类似选民，完全被动</li>
+<li>Candidate候选人: 类似Proposer，可以被选为一个新的 Leader</li>
 </ul>
 </li>
-<li><p>协议分层清晰：</p>
+<li>leader 从客户端接收日志条目，并试图将它们复制到其他服务器，迫使其他服务器的日志与自己的日志一致。当 leader 发现这一轮中有日志被被分到了大多数 servers，该日志项和之前的日志将被安全地应用到状态机中。Leader 将提交并应用这些日志项，然后告诉 followers 也 apply 他们。</li>
+</ul>
+<p><img src="https://raw.githubusercontent.com/zjs1224522500/PicGoImages/master//img/blog/20201216220445.png" alt="image-20251013195909977"></p>
 <ul>
-<li>PCIe 提供物理链路</li>
-<li>NVMe协议再PCIe之上定义逻辑指令集</li>
+<li>用于实际系统的共识协议通常具有以下特性：<ul>
+<li>Safety：它们不会在所有非拜占庭条件下返回错误的结果</li>
+<li>Liveness：只要大多数服务器都处于活动状态，并且能够相互通信和与客户端通信，它们就能完全发挥作用。我们称这组服务器是健康的</li>
 </ul>
 </li>
+<li>Raft 中的 Safety 是由 Leader Completeness Property 来保证的， 如果在给定 term 提交了日志条目，那么该条目将出现在所有编号较高的 term 的 leader 日志中。</li>
+<li>Liveness 由 Raft 规则保证，通常使用了一致性协议的系统的服务器的数量常常为奇数，假设 N &#x3D; 2F + 1，Raft 可以容忍 F 个错误，我们定义一个一致性协议可以容忍的失败数量作为 liveness level，所以此时的 liveness level 为 F，更高的 liveness level 意味着更好的 liveness，没有一个协议的 liveness level 可以达到 F+1，因为如果存在这样的协议，则可能存在两个分裂的 F 个健康服务器组，这两个组可以分别就不同的内容达成一致，这是违反安全特性的。</li>
 </ul>
-<h2 id="为什么传统软件栈不够用？"><a href="#为什么传统软件栈不够用？" class="headerlink" title="为什么传统软件栈不够用？"></a>为什么传统软件栈不够用？</h2><p>虽然 Bluestore 已经绕过了文件系统（直接管理裸盘），但它仍然存在两个关键瓶颈：</p>
-<ol>
-<li><p><strong>依赖内核 IO 栈</strong>  </p>
-<ul>
-<li>Bluestore 使用 libaio 提交请求，最终还是要走 Linux 内核的 I&#x2F;O 路径。  </li>
-<li>NVMe 的多队列并行性被内核锁与调度部分抵消。</li>
+<h3 id="Erasure-Coding"><a href="#Erasure-Coding" class="headerlink" title="Erasure Coding"></a>Erasure Coding</h3><ul>
+<li>擦除编码是存储系统和网络传输中容忍错误的常用技术。们已经提出了大量的编码，其中最常用的是Reed-Solomon (RS)编码。RS 码中有两个可配置的正整数参数 k 和 m，数据被分成了相同大小的 k 个分片，然后使用这 k 个原始的数据分片计算出 m 个类似的校验分片，也就是编码过程，此时总共将有 k+m 个分片，(k,m)-RS 码就意味着所有分片中的任意 k 个分片就能恢复出原始数据，这就是 RS 码的容错原理。（类似于解方程的过程）</li>
+<li>当引入一致性协议，k + m &#x3D; N，N 为服务器的总数量，存储和网络开销将被见效的全拷贝的 1&#x2F;k，然而如何保证 safety 和 liveness 不容忽视</li>
 </ul>
+<h3 id="RS-Paxos"><a href="#RS-Paxos" class="headerlink" title="RS-Paxos"></a>RS-Paxos</h3><ul>
+<li><p>RS-Paxos 是将纠删编码与 Paxos 相结合的一种 Paxos 的改革版本，可以节省存储和网络成本。在 Paxos 中，命令被完全传输。然而，在 RS-Paxos 中，命令是通过代码片段传输的。根据这一变化，服务器在 RS-Paxos 中只能存储和传输片段，从而降低了存储和网络成本。</p>
 </li>
-<li><p><strong>多核扩展差</strong>  </p>
-<ul>
-<li>传统ceph的OSD 内部有大量线程，多个线程共享一个设备队列，需要加锁。  </li>
-<li>NVMe 给了“每个 core 一个队列”的能力，但传统 OSD 架构无法做到真正的无锁扩展。</li>
-</ul>
-</li>
-</ol>
-<p>结果就是：  </p>
-<ul>
-<li>NVMe 单盘明明能跑 100 万 IOPS，Bluestore OSD 只能吃下 20~30 万。  </li>
-<li>延迟也比硬件指标多出几倍。</li>
-</ul>
-<p>这就是 Ceph 需要 Crimson&#x2F;Seastore 的根本原因。</p>
-<hr>
-<h2 id="Seastar-与-NVMe-的天然契合"><a href="#Seastar-与-NVMe-的天然契合" class="headerlink" title="Seastar 与 NVMe 的天然契合"></a>Seastar 与 NVMe 的天然契合</h2><p>NVMe 的设计理念，和 Seastar 的 shard 模型几乎是天然匹配的：  </p>
-<ul>
-<li><p><strong>多队列对多 shard</strong>  </p>
-<ul>
-<li>NVMe：最多 64K 个提交&#x2F;完成队列，每个 core 可独享一个队列。  </li>
-<li>Seastar：应用拆分成多个 shard，每个 core 独立执行。  </li>
-<li>映射关系：一个 shard ↔ 一个 NVMe 队列，无需锁。</li>
-</ul>
-</li>
-<li><p><strong>无锁并行</strong>  </p>
-<ul>
-<li>每个 core 只 poll 自己的完成队列，不会和其他 core 争抢。  </li>
-<li>I&#x2F;O 提交和完成完全 core-local，避免了传统 OSD 的“队列共享 + 自旋锁”。</li>
-</ul>
-</li>
-<li><p><strong>性能收益直观</strong>  </p>
-<ul>
-<li>传统 aio + 内核队列：单盘 4KB 随机读 ~40 万 IOPS  </li>
-<li>io_uring + shard 绑定队列：单盘可跑 150 万 IOPS+  </li>
-<li>在 Crimson&#x2F;Seastore 的实验结果中，相比 Bluestore 延迟下降 3<del>5 倍，IOPS 提升 2</del>3 倍。</li>
-</ul>
+<li><p>为了保证安全性和活动性，Paxos和Raft基于以下包容-排斥原则。</p>
+<p>​                                                 ∣<em>A</em>∪<em>B</em>∣&#x3D;∣<em>A</em>∣+∣<em>B</em>∣−∣<em>A</em>∩<em>B</em>∣</p>
 </li>
 </ul>
-<p>可以说，Seastore 不是“适配 NVMe”，而是“为 NVMe 而生”。</p>
-<hr>
-<h2 id="设备特性"><a href="#设备特性" class="headerlink" title="设备特性"></a><strong>设备特性</strong></h2><ul>
-<li><p>对齐要求</p>
+<p>包含排除原则保证在两个不同的服务器组合中至少有一个服务器的数量差距，这样安全性就可以得到保证。</p>
 <ul>
-<li><strong>最小 I&#x2F;O 单位</strong>：NVMe SSD 通常要求 <strong>4KB 对齐</strong>，即提交的 I&#x2F;O 地址和长度最好是 4KB 的整数倍。</li>
-<li>**擦除单元 (Erase Block &#x2F; LBA Block)**：<ul>
-<li>NAND 闪存以 Block 为单位擦写。</li>
-<li>随机写小于 Block 会触发 <strong>读-改-写操作</strong>，造成 <strong>写放大</strong>（Write Amplification），降低寿命和性能</li>
-</ul>
-</li>
-</ul>
-</li>
-<li><p>写放大</p>
-<ul>
-<li>为了更新少量数据，SSD 需要擦除和重写整个 Block，导致实际写入数据量 &gt; 应用写入数据量</li>
-</ul>
-<p>影响：小随机写 IOPS 下降。设备寿命减少。</p>
-<p>优化方式：使用 <strong>顺序写</strong> 或 <strong>批量写</strong> 、合理规划 <strong>文件系统块大小</strong> 与 NVMe 对齐。</p>
-</li>
-<li><p>延迟指标</p>
-<ul>
-<li>单次 I&#x2F;O 延迟通常：<strong>消费级 NVMe</strong>：读 10–30 µs，写 20–50 µs。<strong>企业级 NVMe</strong>：读&#x2F;写可 &lt; 10 µs。</li>
-<li>对比SATA SSD：读&#x2F;写50–100 µs  HDD :读&#x2F;写 5–10 ms</li>
-</ul>
-</li>
-<li><p>iops与吞吐上限</p>
-<ul>
-<li><strong>单盘 IOPS</strong>：随机读(4KB) 500k-3000k .随机写（4kB）300k-700k</li>
-<li>NVMe 原生支持多队列，每个 CPU 核心可绑定一个或多个提交队列（这里就体现出crimsn 中使用seastar框架的重要性了）</li>
-<li>在多核 CPU 和多队列的场景下，IOPS 可以线性扩展到数百万，充分利用硬件并行能力。</li>
-</ul>
-</li>
-<li><p>I&#x2F;O调用方式</p>
-<ul>
-<li>libaio(传统linux异步io,适合单线程或者少量队列异步提交)</li>
-<li>io_uring（linux5.1 真正零拷贝和高性能多队列异步I&#x2F;O）</li>
-</ul>
-</li>
-<li><p>高级特性：</p>
-<ul>
-<li>NVMe2.0 :在线升级、多命名空间（128个）、多流、原子写、 sanitize、copy、verify、compare等高级特性。</li>
-<li>遵循OCP 2.5规范协议，Telemetry、Latency Monitor、Thermal Throttle等高级特性</li>
-<li>支持SR-IOV • 最多64个V</li>
-<li>灵活数据放置(FDP) • 提升稳态随机写性能，大幅降低写放大，特殊场景下 可实现WAF&#x3D;1</li>
-<li>TCG OPAL2.0安全规范 • 支持OPAL 2.0协议栈 • 支持SM2&#x2F;SM3&#x2F;SM4&#x2F;AES256数据加密</li>
-<li>端到端保护</li>
-<li>持Secure Boot、Firmware安全校验、Format、 Sanitize等多种企业级安全特性</li>
-</ul>
+<li><p>RS-Paxos 的想法是增加交集集的大小。具体来说，在选择了一个 (k,m)-RS 代码后，读quorum QR、写 quorum QW 和服务器数量 N 应该符合以下公式。</p>
+<p>​													<em>Q**R</em>+<em>Q**W</em>−<em>N</em>≥<em>k</em></p>
 </li>
 </ul>
 <hr>
+<ul>
+<li><strong>本文作者：</strong> zhengyun Li</li>
+<li><strong>版权声明：</strong> 本博客所有文章除特别声明外，均采用<a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/"> BY-NC-SA</a> 许可协议。转载请注明出处！</li>
+</ul>
 
     </div>
 
@@ -422,8 +338,8 @@
 
       <footer class="post-footer">
           <div class="post-tags">
-              <a href="/tags/nvme/" rel="tag"># nvme</a>
-              <a href="/tags/Crimson/" rel="tag"># Crimson</a>
+              <a href="/tags/%E5%AD%98%E5%82%A8/" rel="tag"># 存储</a>
+              <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag"># 分布式</a>
           </div>
 
         
@@ -432,13 +348,10 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/2025/09/19/%E7%BA%A6%E7%91%9F%E5%A4%AB%E7%8E%AF/" rel="prev" title="约瑟夫环问题">
-      <i class="fa fa-chevron-left"></i> 约瑟夫环问题
+    <a href="/2025/10/13/Alluxio/" rel="prev" title="Alluxio">
+      <i class="fa fa-chevron-left"></i> Alluxio
     </a></div>
-      <div class="post-nav-item">
-    <a href="/2025/09/30/ceph%E4%B8%AD%E7%9A%84%E5%AD%98%E5%82%A8%E7%A9%BA%E9%97%B4%E5%88%86%E9%85%8D%E5%99%A8/" rel="next" title="ceph中的存储空间分配器">
-      ceph中的存储空间分配器 <i class="fa fa-chevron-right"></i>
-    </a></div>
+      <div class="post-nav-item"></div>
     </div>
       </footer>
     
@@ -502,7 +415,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%98%AFNVMe"><span class="nav-number">1.</span> <span class="nav-text">什么是NVMe</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E4%BC%A0%E7%BB%9F%E8%BD%AF%E4%BB%B6%E6%A0%88%E4%B8%8D%E5%A4%9F%E7%94%A8%EF%BC%9F"><span class="nav-number">2.</span> <span class="nav-text">为什么传统软件栈不够用？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Seastar-%E4%B8%8E-NVMe-%E7%9A%84%E5%A4%A9%E7%84%B6%E5%A5%91%E5%90%88"><span class="nav-number">3.</span> <span class="nav-text">Seastar 与 NVMe 的天然契合</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E5%A4%87%E7%89%B9%E6%80%A7"><span class="nav-number">4.</span> <span class="nav-text">设备特性</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Abstract"><span class="nav-number">1.</span> <span class="nav-text">Abstract</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Introduction"><span class="nav-number">2.</span> <span class="nav-text">Introduction</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Background"><span class="nav-number">3.</span> <span class="nav-text">Background</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Raft"><span class="nav-number">3.1.</span> <span class="nav-text">Raft</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Erasure-Coding"><span class="nav-number">3.2.</span> <span class="nav-text">Erasure Coding</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RS-Paxos"><span class="nav-number">3.3.</span> <span class="nav-text">RS-Paxos</span></a></li></ol></li></ol></div>
       </div>
       <!--/noindex-->
 
