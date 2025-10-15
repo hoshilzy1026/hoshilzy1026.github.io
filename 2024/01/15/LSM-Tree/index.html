@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-m.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-m.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"hoshilzy1026.github.io","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":false,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.json"};
+  </script>
+
+  <meta name="description" content="1996 年发表的 LSM Tree. 原文链接见参考链接【1】 作为 KV 存储中应用最为广泛的存储引擎（数据结构），近年来提出了大量新的优化方案。 此篇为考古文，了解 LSM 设计之初的一些想法以及 LSM 底层原理。 该篇论文只是数据结构和思想的提出，和实际的实现有一定出入。后续结合 Google BigTable 2006 继续学习。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="LSM-Tree">
+<meta property="og:url" content="https://hoshilzy1026.github.io/2024/01/15/LSM-Tree/index.html">
+<meta property="og:site_name" content="Hoshi">
+<meta property="og:description" content="1996 年发表的 LSM Tree. 原文链接见参考链接【1】 作为 KV 存储中应用最为广泛的存储引擎（数据结构），近年来提出了大量新的优化方案。 此篇为考古文，了解 LSM 设计之初的一些想法以及 LSM 底层原理。 该篇论文只是数据结构和思想的提出，和实际的实现有一定出入。后续结合 Google BigTable 2006 继续学习。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://blog.shunzi.tech/post-images/1589352512886.png">
+<meta property="og:image" content="https://blog.shunzi.tech/post-images/1589766094541.png">
+<meta property="og:image" content="https://blog.shunzi.tech/post-images/1589774474368.png">
+<meta property="og:image" content="https://blog.shunzi.tech/post-images/1589795387417.png">
+<meta property="article:published_time" content="2024-01-15T07:22:58.000Z">
+<meta property="article:modified_time" content="2025-10-15T07:32:47.787Z">
+<meta property="article:author" content="lzy">
+<meta property="article:tag" content="LSM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.shunzi.tech/post-images/1589352512886.png">
+
+<link rel="canonical" href="https://hoshilzy1026.github.io/2024/01/15/LSM-Tree/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>LSM-Tree | Hoshi</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y6XQ2TRE3Y"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-Y6XQ2TRE3Y');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hoshi</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://hoshilzy1026.github.io/2024/01/15/LSM-Tree/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="lzy">
+      <meta itemprop="description" content="选择有时候比努力更重要">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hoshi">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          LSM-Tree
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2024-01-15 15:22:58" itemprop="dateCreated datePublished" datetime="2024-01-15T15:22:58+08:00">2024-01-15</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2025-10-15 15:32:47" itemprop="dateModified" datetime="2025-10-15T15:32:47+08:00">2025-10-15</time>
+              </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>3.9k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>14 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<ul>
+<li>1996 年发表的 LSM Tree. 原文链接见参考链接【1】</li>
+<li>作为 KV 存储中应用最为广泛的存储引擎（数据结构），近年来提出了大量新的优化方案。</li>
+<li>此篇为考古文，了解 LSM 设计之初的一些想法以及 LSM 底层原理。</li>
+<li>该篇论文只是数据结构和思想的提出，和实际的实现有一定出入。后续结合 Google BigTable 2006 继续学习。</li>
+</ul>
+</blockquote>
+<span id="more"></span>
+
+
+<h2 id="Abstract"><a href="#Abstract" class="headerlink" title="Abstract"></a>Abstract</h2><ul>
+<li>原文首先介绍了一个场景来引入 LSM 诞生的必要性。针对有高性能要求的交易系统，往往需要历史记录表来用于相关交易记录的查询或者故障恢复。当交易系统数据量较大时，就需要借助索引来保证查询效率的高校了。但索引显然是一种空间换时间的算法，在后期新数据写入时，维护索引数据的变化将会带来很大的开销，最常用的基于磁盘的索引结构 B Tree在实时维护索引时常常会 double IO 开销，整个系统的开销也将有大幅度的增加。故需要一种低开销的维护索引的方案。</li>
+<li>日志结构合并树(LSM-tree)是一种基于磁盘的数据结构，旨在为长时间内经历高记录插入(和删除)率的文件提供低成本索引。核心思想就是将写入推迟(Defer)并转换为批量(Batch)写，首先将大量写入缓存在内存，当积攒到一定程度后，将他们批量写入文件中，这要一次I&#x2F;O可以进行多条数据的写入，充分利用每一次I&#x2F;O。同时指出 LSM Tree 更适用于写密集型应用。</li>
+</ul>
+<h2 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h2><h3 id="The-five-minute-rule"><a href="#The-five-minute-rule" class="headerlink" title="The five minute rule"></a>The five minute rule</h3><ul>
+<li>适当地引入内存，来规划存储系统的总开销将在成本和效率上都能获益。</li>
+<li>参考：<a target="_blank" rel="noopener" href="https://kernelmaker.github.io/lsm-tree">https://kernelmaker.github.io/lsm-tree</a></li>
+</ul>
+<h2 id="Design"><a href="#Design" class="headerlink" title="Design"></a>Design</h2><h3 id="LSM-Tree-的组成"><a href="#LSM-Tree-的组成" class="headerlink" title="LSM Tree 的组成"></a>LSM Tree 的组成</h3><ul>
+<li>LSM Tree 主要由两部分组成，内存组件和磁盘组件，图示中的 C0 和 C1。C0 组件较小（出于成本考虑，位于在内存中，无需存储大量数据），C1 组件相对较大。</li>
+<li>C0 常被用于 C1 的缓冲区，用于吸收突发的读写，C0 类似于 C1 的缓存层。</li>
+</ul>
+<p><img src="https://blog.shunzi.tech/post-images/1589352512886.png" alt="image-20251015152433448"></p>
+<ul>
+<li>写流程：首先写日志文件（WAL机制用于故障恢复），然后写 C0，到达一定阈值之后，C0 合并到 C1（刷回）。C0 到 C1 延迟相对较大，数据容易丢，故需要 WAL 机制保证一致性。</li>
+<li>读流程：首先读 C0 看是否存在对应的 KV，不存在再去读 C1。</li>
+</ul>
+<h4 id="磁盘组件"><a href="#磁盘组件" class="headerlink" title="磁盘组件"></a>磁盘组件</h4><ul>
+<li>磁盘组件旨在利用磁盘的顺序读写性能远好于随机读写性能的优势，将数据进行排序，顺序地对磁盘进行 IO。数据结构类似于 B+ Tree，满节点，每一个节点对应数据页。</li>
+<li>LSM Tree 中包含两类 Block，Single-Page Block 和 Multi-Page Block。Single-Page Block 其实就是指根节点以及每一层里的单页节点，而 Multi-Page Block 是指根目录下的每个层级上的单页节点序列会被打包，然后一起放入连续的多页磁盘块中（囊括了根节点以下的节点），利于磁盘顺序访问。</li>
+</ul>
+<h4 id="内存组件"><a href="#内存组件" class="headerlink" title="内存组件"></a>内存组件</h4><ul>
+<li>C0 树不同于 C1 树，由于主要位于内存中，不需要考虑和磁盘交互的数据大小，可以是任意大小，从而充分利用 CPU，所以 C0 树通常不是 B+ 树，一般会是 AVL 树一样的数据结构，效率相对更高。</li>
+</ul>
+<h4 id="Rolling-Merge"><a href="#Rolling-Merge" class="headerlink" title="Rolling Merge"></a>Rolling Merge</h4><ul>
+<li>先读取包含C1树的叶节点的多页块，这会使得C1中的一系列节点条目驻留到缓存</li>
+<li>然后每次合并都会去读取已经被缓存的C1树的一个磁盘页大小的叶节点</li>
+<li>接着将第二步中读取到的C1树叶节点上的条目与C0树的叶节点条目进行合并，并减少C0树的大小</li>
+<li>合并完成后，会为C1树创建一个已合并的新叶节点（在缓存中，填满后被刷入磁盘）</li>
+</ul>
+<p><img src="https://blog.shunzi.tech/post-images/1589766094541.png" alt="image-20251015152511156"></p>
+<h2 id="How-a-Two-Component-LSM-tree-Grows"><a href="#How-a-Two-Component-LSM-tree-Grows" class="headerlink" title="How a Two Component LSM-tree Grows"></a>How a Two Component LSM-tree Grows</h2><h3 id="Rolling-Merge-1"><a href="#Rolling-Merge-1" class="headerlink" title="Rolling Merge"></a>Rolling Merge</h3><h4 id="Process"><a href="#Process" class="headerlink" title="Process"></a>Process</h4><ul>
+<li>当增长中的C0树第一次达到阈值的时候</li>
+<li>最靠左的一系列条目会以高效批量形式从C0树中删除</li>
+<li>然后被重组到C1树(按key递增顺序)，将被完全填满</li>
+<li>连续的C1树的叶节点会按从左到右的顺序，首先被放置到常驻内存的多页块内的若干初始页上</li>
+<li>持续上一步直到该多页块被填满</li>
+<li>然后该多页块被刷到磁盘，成为C1树叶节点层的第一部分，常驻磁盘</li>
+<li>随着这些连续的叶节点添加的过程，一个C1树的目录节点结构会在内存缓存中被创建（这些上层目录节点被存在单独的多页块缓存或单独的页缓存中，为了更高效利用内存和磁盘。其中还包含分隔点索引，可以将访问精确匹配导向某个下一层级的单页节点而不是多页块，类似B树。这样一来，我们就可在滚动合并或长范围搜索时使用多页块，而在索引精确匹配访问时使用单页节点）</li>
+<li>在发生如下情况时，C1的目录节点会被强制刷盘<ul>
+<li>包含目录节点的多页块缓存满了 -&gt; 只有该多页块会被刷盘</li>
+<li>根节点分裂，增加了C1树的深度(大于2) -&gt; 所有多页块刷盘</li>
+<li>checkpoint被执行-&gt; 所有多页块刷盘</li>
+</ul>
+</li>
+</ul>
+<h4 id="Others"><a href="#Others" class="headerlink" title="Others"></a>Others</h4><ul>
+<li>滚动合并过程中有许多针对一致性和并发访问控制的设计细节。<ul>
+<li>在磁盘组件 C1 中，合并过程常常会将需要合并的 Multi-Page Block 区分为两种状态，一种是 empty block，即正在取出数据进行合并的 block，一种是 filling block，用于表示现在的合并结果。对应的存在 Empty Node 和 Filling Node，在并发访问时，合并过程中的 Node 将拒绝对该 Node 的其他操作的请求。</li>
+<li>一致性的保证则主要体现在合并过后生成的新的数据，仍然需要先写对应的日志文件，再将数据追加写入到磁盘，即存入到磁盘中的新的连续的位置，所以 LSM Tree 中是不存在修改操作的，但是针对老数据对应的块需要进行回收才能保证空间的利用率。</li>
+</ul>
+</li>
+<li>LSM Tree 中本身是受 LogStructured FileSystem 的启发，即将随机小写给转换成批量的顺序写，从而充分利用磁盘的顺序 IO 能力，并减小和磁盘的交互次数。同时其垃圾回收的策略也受 LSF 的影响，由于都是追加写入的方式，需要对以往的老数据块进行垃圾回收。LSF 回收的块可能不全为空，而 LSM 中回收的块全为空，所以 LSM 比 LSF 在垃圾回收方面相对较好。</li>
+</ul>
+<h5 id="Log-Structured-File-Systems"><a href="#Log-Structured-File-Systems" class="headerlink" title="Log Structured File Systems."></a>Log Structured File Systems.</h5><ul>
+<li><p>核心思想：使用一个位于内存中的日志文件来吸收大量的随机小写，当到达一定的阈值（通常为 LFS 中内存和磁盘交互的数据单元段的大小）之后（或者周期地进行执行合并操作）将内存中的数据写入磁盘。</p>
+</li>
+<li><p>写入磁盘的方式可以使用 RAID 来进行优化，从而在 IO 时充分利用每一个磁盘的带宽，特别是在读数据的时候，因为需要首先从磁盘中读取出相应的数据段，然后根据数据段中存储的一些数据块的地址信息重建出日志文件，再进行相应的读操作。所以 LFS 本身对于读操作是极不友好的。</p>
+</li>
+<li><p>LSF 和 Journal File System 的区别就是，LFS 只有一个日志文件，而Journal File System 则是有单独的日志和数据，是分开存储的，在写入数据之前首先写日志，数据提交到磁盘以后相应的会删除日志文件。</p>
+</li>
+<li><p><img src="https://blog.shunzi.tech/post-images/1589774474368.png" alt="image-20251015152543043"></p>
+</li>
+<li><p>[<a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=TYqBtau0bYw&list=PLmBWclVtU2xCZR4mD2PBmYaSGFV9MkiQP&index=1">Youtube] Preliminaries (Log Structured File System) - Georgia Tech - Advanced Operating Systems
+</a></p>
+</li>
+<li><p>[<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/41358013">知乎]: Log-structured File System</a></p>
+</li>
+</ul>
+<h2 id="Operations"><a href="#Operations" class="headerlink" title="Operations"></a>Operations</h2><h3 id="Query"><a href="#Query" class="headerlink" title="Query"></a>Query</h3><ul>
+<li>LSM Tree 的查询操作由于存在多个组件，故需要在多个 组件都进行查询，从 C0 到 Ck，为了保证LSM中所有条目都被检查到，就必须让每个精确匹配或范围查找要访问每个Ci组件的索引结构。故后来有很多研究提出了各种各样的对 LSM Tree 写性能的优化方式。</li>
+</ul>
+<p><img src="https://blog.shunzi.tech/post-images/1589795387417.png" alt="image-20251015152615878"></p>
+<ul>
+<li>如果记录的生成逻辑就能保证索引唯一性，比如时间戳，那么在较小的一个Ci组件内搜索到结果就可以直接停止搜索直接返回。</li>
+<li>再比如，搜索条件中使用了最近的时间戳，我们可以限制搜索范围为那些还没有移动到最大组件的记录所处的序号小的组件上。当合并游标在（Ci，Ci + 1）对中循环徘徊时，我们通常有理由保留Ci中那些最近插入的条目（比如在最近τi秒内），而只允许那些较旧的条目移动到Ci+1中。</li>
+<li>在最频繁的查询指向最近插入的值的这种场景中，许多搜索都可在C0树中就完成，这样就使得C0树完全发挥了了自己的内存缓存价值。这是十分重要的性能优化策略。举个例子，被用作短期事务UNDO日志索引，在中止事件中被访问，在创建这些索引后会有大比例是访问短期内的数据，所以我们可以预期大多数这样的索引会驻留在内存中。</li>
+<li>通过跟踪每个事务的开始时间，我们可以保证在最后的τ0秒内启动事务的所有日志，例如，将在组件C0中找到，而无需搜索位于磁盘的其他LSM树组件。</li>
+</ul>
+<h3 id="Delete-Update"><a href="#Delete-Update" class="headerlink" title="Delete Update"></a>Delete Update</h3><ul>
+<li>删除操作则是新写入一个指定索引的删除状态，在后期进行滚动合并时相应地针对该删除状态和对应的数据进行处理，合并到更大的组件中或者比较对应的数据块无效，在进行查询时对应地进行过滤，垃圾回收时相应地清空对应的存储空间。</li>
+<li>更新操作则需要根据实际情况进行区分，如果只改value，相应地更改对应索引地址的数据，如果修改ID，即一些会影响数据索引的操作，则将修改操作对应的转换为 删除+插入。</li>
+</ul>
+<h3 id="相关参数理论计算"><a href="#相关参数理论计算" class="headerlink" title="相关参数理论计算"></a>相关参数理论计算</h3><ul>
+<li>计算证明过程参考对应的参考链接。</li>
+</ul>
+<h3 id="并发访问"><a href="#并发访问" class="headerlink" title="并发访问"></a>并发访问</h3><h4 id="并发问题"><a href="#并发问题" class="headerlink" title="并发问题"></a>并发问题</h4><ol>
+<li>查询操作不能同时去访问另一个进程的rolling merge正在修改的磁盘组件的节点内容</li>
+<li>针对C0组件的查询和插入操作也不能与正在进行的rolling merge的同时对树的相同部分进行访问</li>
+<li>从Ci-1到Ci的rolling merge的游标有时需要越过从Ci到Ci+1的rolling merge的游标，因为数据从Ci-1移出速率&gt;&#x3D;从Ci移出的速率，这意味着Ci-1所关联的游标的循环周期要更快。因此无论如何，所采用的并发访问机制必须允许这种交错发生，而不能强制要求在交会点，一个进程(移出数据到Ci的那个)必须阻塞在另一个进程(从Ci移出数据的那个)之后。</li>
+</ol>
+<h4 id="磁盘组件并发问题"><a href="#磁盘组件并发问题" class="headerlink" title="磁盘组件并发问题"></a>磁盘组件并发问题</h4><ul>
+<li>LSM树中用于并发控制访问基于磁盘的组件而导致冲突，所以加锁的单位是树的节点：<ul>
+<li>正在因滚动合并被修改的节点会被加上写锁。滚动游标使用的写锁会在合并到更大的组件后被释放</li>
+<li>正在因搜索而读取的节点会被加上读锁。叶节点上的条目被扫描完了，就会释放</li>
+<li>为了防止死锁，设计了目录锁相关方法</li>
+</ul>
+</li>
+<li>内存组件中，假设数据结构为 2-3 树。可以用写锁锁住2-3树的目录节点一个子树，该节点包含要合并到C1节点时受影响范围内的所有条目; 同时，查找操作会用读锁锁定那些处于搜索路径上的2-3树的所有节点，这是一个排他锁。</li>
+<li><a target="_blank" rel="noopener" href="https://www.jianshu.com/p/2e75fe5d641a">简书： AVL树，2-3 树，红黑树</a></li>
+<li>为了提高并发，前面章节提到过的C1树的empty block和filling block都会包含整数个C1树中的页大小的节点，并驻留在内存。在合并重组节点时，这些节点会被加上写锁，以阻止对这些记录的其他类型并发访问。</li>
+</ul>
+<h4 id="内存组件到磁盘组件的并发"><a href="#内存组件到磁盘组件的并发" class="headerlink" title="内存组件到磁盘组件的并发"></a>内存组件到磁盘组件的并发</h4><ul>
+<li>前面讨论的都是基于磁盘的组件间merger时的并发情况，现在说说C0到C1的合并时的并发情况。与其他合并步骤相同，CPU应该专注于合并任务，所以其他访问会被排他的写锁拒绝，当然这个时间会尽可能短。那些会被合并的C0条目应该被提前计算、提前加写锁。除此之外，CPU时间还会由于C0组件以批量的形式删除条目节省时间，而不是每次单独删除而尝试再平衡；C0树可以在整个合并步骤完成后被完全的平衡。</li>
+</ul>
+<h3 id="Failover"><a href="#Failover" class="headerlink" title="Failover"></a>Failover</h3><ul>
+<li>借鉴了 Log Structured File System 中的 Checkpoint 机制，LSM 中的故障恢复主要是为了保证在 Rolling Merge 过程中可能产生的数据丢失，设置 Checkpoint 则是在某一次 Rolling Merge 之前插入一条对应的日志记录，该日志主要保存此次 Rolling Merge 中插入的相关数据，以及原本缓存在内存中的磁盘组件的相关数据（即一些 Rolling Merge 依赖的磁盘组件上的数据）。</li>
+<li>具体流程参考：<a target="_blank" rel="noopener" href="https://www.cnblogs.com/siegfang/archive/2013/01/12/lsm-tree.html">https://www.cnblogs.com/siegfang/archive/2013/01/12/lsm-tree.html</a></li>
+</ul>
+<h2 id="Summary"><a href="#Summary" class="headerlink" title="Summary"></a>Summary</h2><ul>
+<li>LSM 树借鉴了 LSF 的思想，相比于 B Tree，写性能表现更好，主要归功于采用了批量延迟写的方式，同时利用了磁盘顺序 IO 远好于随机 IO 的特性，从而充分利用磁盘的性能。而在数据检索方面，由于多级结构的存在，导致数据的查询效率不高，LSM 更多的是做了内存和磁盘成本的折中妥协。</li>
+<li>后续大量研究都从优化 LSM Tree 的读性能，以及优化 Compaction（Merge）过程带来的性能损失为目标，包括一些具体的工业实现 BigTable, LevelDB, RocksDB。</li>
+</ul>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li>[<a target="_blank" rel="noopener" href="http://www.inf.ufpr.br/eduardo/ensino/ci809/papers/lsmtree.pdf">1] The Log-Structured Merge-Tree (LSM-Tree)</a></li>
+<li>[<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/103968892">2] 知乎 - 大道始于一 - 从SSTable到LSM-Tree之二</a></li>
+<li>[<a target="_blank" rel="noopener" href="https://blog.csdn.net/u010853261/article/details/78217823">3] CSDN - 惜暮 - B树、B+树、LSM树以及其典型应用场景</a></li>
+<li>[[4] Github Page - 【Paper笔记】The Log structured Merge-Tree（LSM-Tree）(<a target="_blank" rel="noopener" href="https://kernelmaker.github.io/lsm-tree">https://kernelmaker.github.io/lsm-tree</a>)</li>
+<li>[<a target="_blank" rel="noopener" href="https://blog.csdn.net/baichoufei90/article/details/84841289">5] CSDN - 论文阅读(翻译) -The Log-Structured Merge-Tree (LSM-Tree)</a></li>
+<li>[<a target="_blank" rel="noopener" href="https://www.cnblogs.com/siegfang/archive/2013/01/12/lsm-tree.html">6] 博客园：日志结构的合并树 The Log-Structured Merge-Tree</a></li>
+<li>[<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Log-structured_merge-tree">7] Wikipedia: LSM Tree</a></li>
+</ul>
+<h2 id="Extend"><a href="#Extend" class="headerlink" title="Extend"></a>Extend</h2><ul>
+<li><strong>本文作者：</strong> zhengyun li</li>
+<li><strong>版权声明：</strong> 本博客所有文章除特别声明外，均采用<a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/"> BY-NC-SA</a> 许可协议。转载请注明出处！</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/LSM/" rel="tag"># LSM</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/03/13/Raft/" rel="prev" title="Raft算法">
+      <i class="fa fa-chevron-left"></i> Raft算法
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/10/23/Alluxio/" rel="next" title="Alluxio">
+      Alluxio <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    
+  <div class="comments">
+    <div id="lv-container" data-id="city" data-uid="MTAyMC82MDkyNS8zNzM5NQ=="></div>
+  </div>
+  
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Abstract"><span class="nav-number">1.</span> <span class="nav-text">Abstract</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Introduction"><span class="nav-number">2.</span> <span class="nav-text">Introduction</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#The-five-minute-rule"><span class="nav-number">2.1.</span> <span class="nav-text">The five minute rule</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Design"><span class="nav-number">3.</span> <span class="nav-text">Design</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#LSM-Tree-%E7%9A%84%E7%BB%84%E6%88%90"><span class="nav-number">3.1.</span> <span class="nav-text">LSM Tree 的组成</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%A3%81%E7%9B%98%E7%BB%84%E4%BB%B6"><span class="nav-number">3.1.1.</span> <span class="nav-text">磁盘组件</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E7%BB%84%E4%BB%B6"><span class="nav-number">3.1.2.</span> <span class="nav-text">内存组件</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Rolling-Merge"><span class="nav-number">3.1.3.</span> <span class="nav-text">Rolling Merge</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#How-a-Two-Component-LSM-tree-Grows"><span class="nav-number">4.</span> <span class="nav-text">How a Two Component LSM-tree Grows</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Rolling-Merge-1"><span class="nav-number">4.1.</span> <span class="nav-text">Rolling Merge</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Process"><span class="nav-number">4.1.1.</span> <span class="nav-text">Process</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Others"><span class="nav-number">4.1.2.</span> <span class="nav-text">Others</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#Log-Structured-File-Systems"><span class="nav-number">4.1.2.1.</span> <span class="nav-text">Log Structured File Systems.</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Operations"><span class="nav-number">5.</span> <span class="nav-text">Operations</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Query"><span class="nav-number">5.1.</span> <span class="nav-text">Query</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Delete-Update"><span class="nav-number">5.2.</span> <span class="nav-text">Delete Update</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%9B%B8%E5%85%B3%E5%8F%82%E6%95%B0%E7%90%86%E8%AE%BA%E8%AE%A1%E7%AE%97"><span class="nav-number">5.3.</span> <span class="nav-text">相关参数理论计算</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B9%B6%E5%8F%91%E8%AE%BF%E9%97%AE"><span class="nav-number">5.4.</span> <span class="nav-text">并发访问</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%B9%B6%E5%8F%91%E9%97%AE%E9%A2%98"><span class="nav-number">5.4.1.</span> <span class="nav-text">并发问题</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%A3%81%E7%9B%98%E7%BB%84%E4%BB%B6%E5%B9%B6%E5%8F%91%E9%97%AE%E9%A2%98"><span class="nav-number">5.4.2.</span> <span class="nav-text">磁盘组件并发问题</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E7%BB%84%E4%BB%B6%E5%88%B0%E7%A3%81%E7%9B%98%E7%BB%84%E4%BB%B6%E7%9A%84%E5%B9%B6%E5%8F%91"><span class="nav-number">5.4.3.</span> <span class="nav-text">内存组件到磁盘组件的并发</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Failover"><span class="nav-number">5.5.</span> <span class="nav-text">Failover</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Summary"><span class="nav-number">6.</span> <span class="nav-text">Summary</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E9%93%BE%E6%8E%A5"><span class="nav-number">7.</span> <span class="nav-text">参考链接</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Extend"><span class="nav-number">8.</span> <span class="nav-text">Extend</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="lzy"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">lzy</p>
+  <div class="site-description" itemprop="description">选择有时候比努力更重要</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">11</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/hoshilzy1026" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;hoshilzy1026" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:18338064521@163.com" title="E-Mail → mailto:18338064521@163.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://weibo.com/6888391895" title="Weibo → https:&#x2F;&#x2F;weibo.com&#x2F;6888391895" rel="noopener" target="_blank"><i class="fab fa-weibo fa-fw"></i>Weibo</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://stackoverflow.com/users/31529112/ffhoshi" title="StackOverflow → https:&#x2F;&#x2F;stackoverflow.com&#x2F;users&#x2F;31529112&#x2F;ffhoshi" rel="noopener" target="_blank"><i class="fab fa-stack-overflow fa-fw"></i>StackOverflow</a>
+      </span>
+  </div>
+
+
+
+      </div>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2021-12 – 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">lzy</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">46k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">2:49</span>
+</div>
+
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+<span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+<span class="post-meta-divider">|</span>
+<span id="busuanzi_container_site_uv">本站访客数<span id="busuanzi_value_site_uv"></span>人</span>
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script color='0,0,255' opacity='0.5' zIndex='-1' count='99' src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<script>
+NexT.utils.loadComments(document.querySelector('#lv-container'), () => {
+  window.livereOptions = {
+    refer: location.pathname.replace(CONFIG.root, '').replace('index.html', '')
+  };
+  (function(d, s) {
+    var j, e = d.getElementsByTagName(s)[0];
+    if (typeof LivereTower === 'function') { return; }
+    j = d.createElement(s);
+    j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+    j.async = true;
+    e.parentNode.insertBefore(j, e);
+  })(document, 'script');
+});
+</script>
+
+</body>
+</html>
